@@ -21,13 +21,15 @@ import streamlit.components.v1 as components
 
 from app.components import data_access as da
 from app.components.badges import risk_badge, status_badge
-from app.components.graph import render_case_graph_html
+from app.components.graph import cached_case_graph_html
 from app.components.styles import TOKENS, render_sidebar, set_page
+from app.components.ui import friendly_errors
+from core.agents.evidence import build_evidence_pack
 from core.agents.llm import get_llm_status
 from core.agents.orchestrator import run_sar_pipeline
+from core.agents.qa import answer_question
 from core.agents.validator import validate_narrative
 from core.audit import record_audit
-from core.casegraph import load_case_subgraph
 from core.config import load_rules, load_settings
 from core.db import session_scope
 from core.models import CaseAccount, CaseRow, SarDraft
@@ -45,19 +47,21 @@ if not case_id:
     st.info("No case selected. Choose a case on the **Cases** page and click *Investigate →*.")
     st.stop()
 
-with session_scope() as session:
-    case = session.get(CaseRow, case_id)
-    if case is None:
-        st.warning(f"Case {case_id} not found for dataset `{dataset}`.")
-        st.stop()
-    case_title, case_score, case_status = case.title, case.score, case.status
-    case_total, case_ntxns = case.total_amount, case.n_txns
-    case_patterns = json.loads(case.patterns_json)
-    account_rows = [
-        {"account_id": ca.account_id, "risk_score": ca.risk_score,
-         "explanation": json.loads(ca.explanation_json)}
-        for ca in session.query(CaseAccount).filter(CaseAccount.case_id == case_id).all()
-    ]
+with friendly_errors("loading the case", stop=True):
+    with session_scope() as session:
+        case = session.get(CaseRow, case_id)
+        if case is None:
+            st.warning(f"Case {case_id} not found for dataset `{dataset}`.")
+            st.stop()
+        case_title, case_score, case_status = case.title, case.score, case.status
+        case_total, case_ntxns = case.total_amount, case.n_txns
+        case_patterns = json.loads(case.patterns_json)
+        account_rows = [
+            {"account_id": ca.account_id, "risk_score": ca.risk_score,
+             "explanation": json.loads(ca.explanation_json)}
+            for ca in session.query(CaseAccount).filter(CaseAccount.case_id == case_id).all()
+        ]
+version = da.refresh_token(dataset)
 
 # --- Header ------------------------------------------------------------------
 head_l, head_r = st.columns([3, 1])
@@ -74,10 +78,8 @@ with head_l:
 g_col, why_col = st.columns([3, 2])
 with g_col:
     st.caption("Interactive network — node size = risk, colour = band, red = suspicious flow")
-    try:
-        components.html(render_case_graph_html(case_id), height=560, scrolling=False)
-    except Exception as exc:  # pragma: no cover - never crash the UI
-        st.error(f"Could not render graph: {exc}")
+    with friendly_errors("rendering the network graph"):
+        components.html(cached_case_graph_html(case_id, version), height=560, scrolling=False)
 
 with why_col:
     st.subheader("Why flagged")
@@ -87,8 +89,8 @@ with why_col:
         st.caption(" · ".join(r["explanation"]))
 
 # --- Tabs --------------------------------------------------------------------
-tab_ev, tab_tl, tab_sar, tab_trace = st.tabs(
-    ["Evidence", "Timeline", "SAR Draft", "Agent Trace"])
+tab_ev, tab_tl, tab_sar, tab_trace, tab_ask = st.tabs(
+    ["Evidence", "Timeline", "SAR Draft", "Agent Trace", "Ask the case"])
 
 with tab_ev:
     st.subheader("Account risk")
@@ -103,19 +105,18 @@ with tab_ev:
                          "Risk", min_value=0, max_value=100, format="%d")})
 
 with tab_tl:
-    sub = load_case_subgraph(case_id)
-    if sub.edges:
-        tdf = pd.DataFrame(sub.edges)
-        tdf["flow"] = tdf["source"] + " → " + tdf["target"]
-        fig = px.scatter(tdf, x="date", y="amount", color="suspicious", hover_name="flow",
-                         color_discrete_map={True: TOKENS["risk_high"],
-                                             False: "#94A3B8"},
-                         labels={"amount": "Amount (USD)", "date": "Date"})
-        fig.update_traces(marker=dict(size=12))
-        fig.update_layout(height=380, margin=dict(l=10, r=10, t=10, b=10))
-        st.plotly_chart(fig, use_container_width=True)
-    else:
-        st.caption("No transactions to plot for this case.")
+    with friendly_errors("building the money-flow timeline"):
+        tdf = da.case_timeline(case_id, version)
+        if not tdf.empty:
+            fig = px.scatter(tdf, x="date", y="amount", color="suspicious", hover_name="flow",
+                             color_discrete_map={True: TOKENS["risk_high"],
+                                                 False: "#94A3B8"},
+                             labels={"amount": "Amount (USD)", "date": "Date"})
+            fig.update_traces(marker=dict(size=12))
+            fig.update_layout(height=380, margin=dict(l=10, r=10, t=10, b=10))
+            st.plotly_chart(fig, use_container_width=True)
+        else:
+            st.caption("No transactions to plot for this case.")
 
 # --- SAR Draft tab -----------------------------------------------------------
 sar_key = f"rs_sar_{case_id}"
@@ -166,7 +167,8 @@ with tab_sar:
     c1, c2 = st.columns([1, 2])
     with c1:
         if st.button("✍ Draft SAR", type="primary", use_container_width=True):
-            _do_draft()
+            with friendly_errors("drafting the SAR"):
+                _do_draft()
 
     result = st.session_state.get(sar_key)
     if result is None:
@@ -277,3 +279,52 @@ with tab_trace:
         st.caption(f"LLM status: {get_llm_status().get('label')} · "
                    f"evidence coverage {result.signals.evidence_coverage:.0%} · "
                    f"retries {result.signals.retries_used}")
+
+# --- Ask the case (P10a) -----------------------------------------------------
+with tab_ask:
+    st.subheader("Ask the case")
+    st.caption("Grounded Q&A over this case's evidence pack only — answers cite "
+               "`E-ids` and out-of-scope questions are refused.")
+
+    qa_key = f"rs_qa_{case_id}"
+    history: list[dict] = st.session_state.setdefault(qa_key, [])
+
+    examples = ["What is the total amount involved?",
+                "Which accounts are the subjects?",
+                "What patterns were detected?"]
+    st.caption("Try: " + "  ·  ".join(f"*{e}*" for e in examples))
+
+    for turn in history:
+        with st.chat_message("user"):
+            st.write(turn["q"])
+        with st.chat_message("assistant"):
+            if turn["refused"]:
+                st.warning(turn["a"])
+            else:
+                st.write(turn["a"])
+                if turn["evidence_ids"]:
+                    chips = " ".join(
+                        f"<span class='rs-badge' style='background:{TOKENS['accent']};"
+                        f"font-size:0.7rem'>{e}</span>" for e in turn["evidence_ids"])
+                    st.markdown(f"Sources: {chips}", unsafe_allow_html=True)
+                    with st.expander("Show cited evidence"):
+                        for item in turn["cited"]:
+                            st.markdown(f"**{item['id']}** · {item['summary']}")
+
+    question = st.chat_input("Ask a question about this case…")
+    if question:
+        with friendly_errors("answering your question"):
+            pack = build_evidence_pack(case_id, persist=False)
+            answer, meta = answer_question(pack, question)
+            by_id = {it.id: it for it in pack.items}
+            history.append({
+                "q": question,
+                "a": answer.answer,
+                "refused": answer.refused,
+                "evidence_ids": answer.evidence_ids,
+                "cited": [{"id": e, "summary": by_id[e].summary}
+                          for e in answer.evidence_ids if e in by_id],
+                "model": meta.model_used,
+            })
+            st.session_state[qa_key] = history
+        st.rerun()

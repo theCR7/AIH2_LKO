@@ -17,6 +17,7 @@ import streamlit as st
 
 from app.components import data_access as da
 from app.components.styles import TOKENS, kpi_card, render_sidebar, set_page
+from app.components.ui import friendly_errors
 from core.config import load_rules
 from core.utils import fmt_amount
 
@@ -48,10 +49,12 @@ col_btn, _ = st.columns([1, 3])
 with col_btn:
     if st.button("▶ Generate demo data & run detection", type="primary",
                  use_container_width=True):
-        _run_demo()
-        st.rerun()
+        with friendly_errors("generating demo data and running detection"):
+            _run_demo()
+            st.rerun()
 
-kpis = da.load_kpis(dataset, version)
+with friendly_errors("loading dashboard metrics", stop=True):
+    kpis = da.load_kpis(dataset, version)
 
 if kpis["n_txns"] == 0:
     st.info("No data yet. Click **Generate demo data & run detection** above, "

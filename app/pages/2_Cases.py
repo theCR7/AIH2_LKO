@@ -11,6 +11,7 @@ import streamlit as st
 
 from app.components import data_access as da
 from app.components.styles import render_sidebar, set_page
+from app.components.ui import friendly_errors
 from core.config import load_rules
 from core.utils import fmt_amount
 
@@ -20,7 +21,8 @@ st.markdown("<h2 class='rs-title'>Cases</h2>", unsafe_allow_html=True)
 
 dataset = da.current_dataset()
 version = da.refresh_token(dataset)
-cases = da.load_cases(dataset, version)
+with friendly_errors("loading cases", stop=True):
+    cases = da.load_cases(dataset, version)
 rules = load_rules()
 
 if cases.empty:
@@ -68,5 +70,5 @@ if not view.empty:
     pick = st.selectbox("Select a case to investigate", view["case_id"].tolist())
     if st.button("Investigate →", type="primary"):
         st.session_state["rs_case_id"] = pick
-        st.success(f"Selected {pick}. The Investigate workspace (graph + evidence + "
-                   "SAR drafting) arrives in Phase 1.")
+        st.success(f"Selected {pick}. Open the **Investigate** page (sidebar) for the "
+                   "graph, evidence, SAR drafting and Ask-the-case Q&A.")

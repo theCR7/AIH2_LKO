@@ -91,6 +91,23 @@ def reset_db() -> None:
     Base.metadata.create_all(engine)
 
 
+def clear_data(keep_llm_cache: bool = True) -> None:
+    """Delete rows from every table, optionally preserving the LLM cache.
+
+    Used by Demo mode so a fresh run is reproducible while the prompt-hash cache
+    survives — a second demo run then replays the SAR as cache hits in live mode
+    (PRD §4 determinism). Portable DELETEs (no ``TRUNCATE``) keep rule #8.
+    """
+    init_db()
+    keep = {"llm_cache"} if keep_llm_cache else set()
+    with session_scope() as session:
+        # Delete children before parents to respect any FK constraints.
+        for table in reversed(Base.metadata.sorted_tables):
+            if table.name in keep:
+                continue
+            session.execute(table.delete())
+
+
 # --- Audit-log hash chain (BR4: tamper-evident) ------------------------------
 
 

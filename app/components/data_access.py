@@ -114,6 +114,22 @@ def load_alerts(dataset_id: str, version: int) -> list[Alert]:
     return run_all_detectors(bundle, load_rules())
 
 
+@st.cache_data(show_spinner=False)
+def case_timeline(case_id: str, version: int) -> pd.DataFrame:
+    """Return the case's transaction edges for the money-flow timeline (cached).
+
+    Keyed by ``case_id`` + data ``version`` so the subgraph is loaded once per
+    run instead of on every rerun (ITERATIONS P9 perf).
+    """
+    from core.casegraph import load_case_subgraph
+    sub = load_case_subgraph(case_id)
+    if not sub.edges:
+        return pd.DataFrame()
+    tdf = pd.DataFrame(sub.edges)
+    tdf["flow"] = tdf["source"] + " → " + tdf["target"]
+    return tdf
+
+
 def refresh_token(dataset_id: str) -> int:
     """Convenience: the version token for the active dataset (for cache keys)."""
     _ = dataset_id

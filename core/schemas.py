@@ -126,6 +126,19 @@ class ValidationResult(BaseModel):
     passed: bool
 
 
+class CaseAnswer(BaseModel):
+    """Answer to an 'Ask the case' question, grounded in the EvidencePack (P10a).
+
+    ``refused`` is True when the question cannot be answered from the evidence
+    (out of scope); ``answer`` then holds a short refusal and ``evidence_ids`` is
+    empty. Otherwise every cited id must exist in the pack.
+    """
+
+    answer: str
+    evidence_ids: list[str] = Field(default_factory=list)
+    refused: bool = False
+
+
 class ConfidenceSignals(BaseModel):
     """Logged per draft; not used to gate in MVP (M.Tech research hook)."""
 

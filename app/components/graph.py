@@ -8,6 +8,7 @@ Physics is disabled once stabilised so the graph does not drift during the demo.
 
 from __future__ import annotations
 
+import streamlit as st
 from pyvis.network import Network
 
 from app.components.styles import TOKENS
@@ -32,6 +33,17 @@ def render_case_graph_html(case_id: str, height: int = 550) -> str:
     """Return a self-contained HTML string for the case's interactive graph."""
     sub = load_case_subgraph(case_id)
     return _to_html(sub, height)
+
+
+@st.cache_data(show_spinner=False)
+def cached_case_graph_html(case_id: str, version: int, height: int = 550) -> str:
+    """Cached wrapper over :func:`render_case_graph_html` (ITERATIONS P9 perf).
+
+    Building the pyvis HTML (layout + inlined vis.js) is the heaviest per-rerun
+    cost on the Investigate page. Keyed by ``case_id`` and the data ``version``
+    token so it recomputes only after a new generate/detection run.
+    """
+    return render_case_graph_html(case_id, height)
 
 
 def _to_html(sub: CaseSubgraph, height: int) -> str:

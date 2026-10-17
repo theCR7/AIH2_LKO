@@ -12,6 +12,7 @@ import streamlit as st
 
 from app.components import data_access as da
 from app.components.styles import render_sidebar, set_page
+from app.components.ui import friendly_errors
 from core.ingest.csv_loader import OPTIONAL_FIELDS, REQUIRED_FIELDS, load_dataframe
 from core.ingest.generator import PlantedCounts, generate
 
@@ -45,12 +46,13 @@ tab_gen, tab_upload, tab_ibm = st.tabs(["Generate synthetic", "Upload CSV", "IBM
 
 def _run_detection(dataset_id: str) -> None:
     from core.detection.runner import run_detection
-    with st.spinner("Running all detectors…"):
-        summary = run_detection(dataset_id)
-    da.bump_version()
-    st.success(f"Detection complete: {summary.n_alerts} alerts → {summary.n_cases} cases "
-               f"in {summary.duration_ms} ms.")
-    st.caption("Open the **Cases** page to review ranked cases.")
+    with friendly_errors("running detection"):
+        with st.spinner("Running all detectors…"):
+            summary = run_detection(dataset_id)
+        da.bump_version()
+        st.success(f"Detection complete: {summary.n_alerts} alerts → {summary.n_cases} cases "
+                   f"in {summary.duration_ms} ms.")
+        st.caption("Open the **Cases** page to review ranked cases.")
 
 
 # --- Generate synthetic ------------------------------------------------------
@@ -71,20 +73,22 @@ with tab_gen:
     passthru = p5.number_input("Pass-through", 0, 10, 1)
 
     if st.button("Generate", type="primary"):
-        with st.spinner("Generating…"):
-            res = generate(
-                n_accounts=int(n_accounts), n_txns=int(n_txns), days=int(days),
-                seed=int(seed),
-                planted=PlantedCounts(cycles=int(cycles), fan_in=int(smurf),
-                                      fan_out=int(fanout), shared_id=int(shared),
-                                      passthrough=int(passthru)),
-            )
-        st.session_state["rs_dataset"] = res.dataset_id
-        da.bump_version()
-        st.success(f"Generated {res.n_txns:,} transactions across {res.n_accounts} accounts "
-                   f"({len(res.rings)} planted rings). Dataset `{res.dataset_id}`.")
-        if res.csv_path:
-            st.caption(f"CSV written to `{res.csv_path}`")
+        with friendly_errors("generating synthetic data"):
+            with st.spinner("Generating…"):
+                res = generate(
+                    n_accounts=int(n_accounts), n_txns=int(n_txns), days=int(days),
+                    seed=int(seed),
+                    planted=PlantedCounts(cycles=int(cycles), fan_in=int(smurf),
+                                          fan_out=int(fanout), shared_id=int(shared),
+                                          passthrough=int(passthru)),
+                )
+            st.session_state["rs_dataset"] = res.dataset_id
+            da.bump_version()
+            st.success(f"Generated {res.n_txns:,} transactions across {res.n_accounts} "
+                       f"accounts ({len(res.rings)} planted rings). "
+                       f"Dataset `{res.dataset_id}`.")
+            if res.csv_path:
+                st.caption(f"CSV written to `{res.csv_path}`")
 
     if da.load_kpis(da.current_dataset(), da.refresh_token(da.current_dataset()))["n_txns"]:
         st.divider()
@@ -97,7 +101,8 @@ with tab_upload:
     st.write("Upload a transactions CSV and map its columns.")
     uploaded = st.file_uploader("Drop a CSV", type=["csv"])
     if uploaded is not None:
-        df = pd.read_csv(uploaded)
+        with friendly_errors("reading the CSV file", stop=True):
+            df = pd.read_csv(uploaded)
         st.caption(f"{len(df):,} rows · columns: {', '.join(df.columns)}")
         st.dataframe(df.head(10), use_container_width=True, hide_index=True)
 

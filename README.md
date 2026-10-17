@@ -33,12 +33,57 @@
 
 ---
 
+## Architecture at a glance
+
+`core/` is pure Python (never imports Streamlit); `app/` is the Streamlit UI and reads
+data only through `core`. All thresholds live in `config/rules.yaml`; every LLM call
+goes through the single gateway `core/agents/llm.py` (cache → fallback → deterministic
+mock), and the Validator is the source of truth for grounding.
+
+```mermaid
+flowchart LR
+    subgraph app["app/ (Streamlit UI)"]
+        H[Home · KPIs] --> C[Cases]
+        C --> I[Investigate: graph · evidence · timeline]
+        I --> SAR[SAR Draft tab]
+        I --> ASK[Ask-the-case Q&A]
+        AU[Audit & Metrics]
+    end
+    subgraph core["core/ (no Streamlit)"]
+        GEN[ingest.generator] --> DET[detection runner]
+        DET --> SCORE[scoring: risk + cases]
+        SCORE --> EV[agents.evidence · EvidencePack]
+        EV --> TY[agents.typology]
+        TY --> NA[agents.narrative]
+        NA --> VAL[agents.validator]
+        VAL -->|retry up to N| NA
+        EV --> QA[agents.qa]
+        EV --> ORCH[agents.orchestrator]
+        ORCH --> PDF[reporting.pdf]
+    end
+    LLM[(agents.llm gateway\ncache → fallback → mock)]
+    DB[(SQLite via DATABASE_URL\nportable to SQL Server)]
+    TY --- LLM
+    NA --- LLM
+    QA --- LLM
+    core --- DB
+    SAR --> ORCH
+    ASK --> QA
+```
+
+Pipeline: generate/upload → detect (deterministic, explainable) → rank cases →
+Evidence Builder → Typology → Narrative ⇄ Validator (grounding score) → review,
+approve, PDF. The orchestrator persists versioned drafts, a tamper-evident audit log
+and a decision log.
+
 ## How to run
 
 Phase 0 (foundation + data + detection) and Phase 1 (LLM agents + evidence-grounded
-SAR drafting) are both implemented. Generate synthetic data → detect fraud rings →
-rank cases → investigate on an interactive graph → draft a SAR where every sentence
-is validated against evidence → review, approve and export a PDF.
+SAR drafting) are both implemented, plus Phase 9/10 hardening: one-click **Demo mode**,
+graceful errors everywhere, cached graph building and an **Ask-the-case** grounded Q&A
+tab. Generate synthetic data → detect fraud rings → rank cases → investigate on an
+interactive graph → draft a SAR where every sentence is validated against evidence →
+ask grounded questions → review, approve and export a PDF.
 
 ### 1. Set up a virtual environment and install dependencies
 ```bash
@@ -61,17 +106,33 @@ output). For **live** drafting set `LLM_MODE=live` and add `GEMINI_API_KEY` /
 ```bash
 streamlit run app/Home.py
 ```
-On the **Home** page click **▶ Generate demo data & run detection** — one click
-generates the seed-42 dataset, runs all detectors and builds cases. Then browse:
+**Fastest path — sidebar `🎬 Demo mode`:** one click resets the data (keeping the LLM
+cache), generates the seed-42 dataset, runs detection and pre-warms the SAR drafts for
+the top 2 cases, then shows a determinism fingerprint. Run it twice — identical case and
+evidence IDs every time; in **live** mode the second run replays from cache (100% hits),
+because the prompt-hash cache survives the reset. In **mock** mode there is no cache by
+design, so the ratio shows 0%.
+
+Or, on the **Home** page click **▶ Generate demo data & run detection**. Then browse:
 - **Data** — generate (tunable size/planted counts) or upload a CSV with column mapping.
 - **Cases** — filterable, ranked case list; select a case → *Investigate →*.
-- **Investigate** — interactive pyvis graph, *why flagged*, evidence & timeline, and the
-  **SAR Draft** tab: click *Draft SAR* to run Evidence → Typology → Narrative → Validator.
-  Every sentence shows its evidence chips; failed sentences are highlighted (Grounding Score).
-  Edit + re-validate, Approve / Reject (audited), and **Download SAR PDF**. The sidebar
-  *Inject hallucination* toggle demonstrates the validator catching a false sentence.
-- **Audit & Metrics** — precision / recall / F1 per pattern vs planted ground truth, and the
-  tamper-evident audit log.
+- **Investigate** — interactive pyvis graph (cached), *why flagged*, evidence & timeline,
+  the **SAR Draft** tab (Evidence → Typology → Narrative → Validator; evidence chips per
+  sentence, failed sentences highlighted by Grounding Score; edit + re-validate, audited
+  Approve / Reject, **Download SAR PDF**; the sidebar *Inject hallucination* toggle shows
+  the validator catching a false sentence), and the **Ask the case** tab — a grounded Q&A
+  that answers only from the case's EvidencePack, cites `E-ids`, and refuses out-of-scope
+  questions.
+- **Audit & Metrics** — precision / recall / F1 per pattern vs planted ground truth, and
+  the tamper-evident audit log with a verified hash-chain badge, expandable before/after
+  state per entry and CSV export.
+
+### Offline & Windows
+
+Set `LLM_MODE=mock` for a fully offline, deterministic run — no API keys, no network,
+the whole golden path (including the pyvis graph, with vis.js inlined) works with the
+internet off. The SQLite file and its `data/` folder are created automatically on first
+load regardless of the working directory, so a fresh clone runs on Windows out of the box.
 
 ### SAR drafting (CLI)
 ```bash
@@ -88,13 +149,14 @@ python -m core.db --verify-audit    # verify the audit-log hash chain
 
 ### 4. Tests & lint
 ```bash
-pytest -q          # detectors (recall 1.0, determinism, <10 s), validator grounding, LLM gateway, PDF
+pytest -q          # detectors (recall 1.0, determinism, <10 s), validator grounding, LLM
+                   # gateway, PDF, Demo-mode determinism + cache preservation, Ask-the-case Q&A
 ruff check .       # clean
 ```
 
 ### Project layout
 - **backend** — `core/` (config, db, models, schemas, ingest, detection, scoring, metrics,
-  `agents/` LLM pipeline, `reporting/` PDF)
+  `agents/` LLM pipeline incl. `qa.py` Ask-the-case, `reporting/` PDF, `demo.py` Demo mode)
 - **frontend** — `app/` (Home + pages + components; imports data only via `core`)
 - **database** — `core/db.py` + `core/models.py`, SQLite file in `data/` (portable to SQL Server/Postgres via `DATABASE_URL`)
 - **rules** — all thresholds/weights live in `config/rules.yaml` (single source of truth)
