@@ -21,7 +21,7 @@ import pandas as pd
 from faker import Faker
 
 from core.config import SAMPLES_DIR
-from core.db import init_db, session_scope
+from core.db import session_scope
 from core.models import Account, Identifier, Transaction
 
 # Fixed simulation window start (timezone-naive UTC). Stable across runs.
@@ -336,14 +336,16 @@ def _assign_txn_ids(txns: list[dict]) -> list[dict]:
 
 def _persist(accounts: list[dict], txns: list[dict], identifiers: list[dict],
              dataset_id: str) -> None:
-    """Write accounts, transactions and identifiers to the database."""
-    init_db()
+    """Write accounts, transactions and identifiers to the database.
+
+    The DB holds exactly one active dataset, so every prior dataset's rows are
+    cleared first (transaction ids like ``T000001`` are a global PK — leaving an
+    old dataset in place would collide and let its identifiers/accounts leak into
+    the new run). The LLM cache is preserved so cached SAR drafts still replay.
+    """
+    from core.db import clear_data
+    clear_data(keep_llm_cache=True)
     with session_scope() as session:
-        # Clear any prior rows for this dataset for a clean, repeatable demo.
-        session.query(Transaction).filter(Transaction.dataset_id == dataset_id).delete()
-        session.query(Identifier).delete()
-        session.query(Account).delete()
-        session.flush()
         session.bulk_insert_mappings(Account, accounts)
         session.bulk_insert_mappings(
             Transaction,

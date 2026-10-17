@@ -11,7 +11,7 @@ from datetime import datetime
 
 import pandas as pd
 
-from core.db import init_db, session_scope
+from core.db import session_scope
 from core.models import Account, Transaction
 from core.utils import utcnow
 
@@ -126,8 +126,15 @@ def load_dataframe(df: pd.DataFrame, mapping: dict[str, str], dataset_id: str = 
 
 
 def _persist_upload(rows: list[dict], account_ids: list[str], dataset_id: str) -> None:
-    """Persist uploaded txns and auto-create minimal account records."""
-    init_db()
+    """Persist uploaded txns and auto-create minimal account records.
+
+    The DB holds one active dataset, so any prior dataset is cleared first: upload
+    transaction ids (``T000001`` …) are a global PK and would otherwise collide
+    with the sample dataset, and a prior run's identifiers/accounts would leak into
+    detection. The LLM cache is preserved.
+    """
+    from core.db import clear_data
+    clear_data(keep_llm_cache=True)
     now = utcnow()
     accounts = [
         {
@@ -137,11 +144,7 @@ def _persist_upload(rows: list[dict], account_ids: list[str], dataset_id: str) -
         for aid in account_ids
     ]
     with session_scope() as session:
-        session.query(Transaction).filter(Transaction.dataset_id == dataset_id).delete()
-        existing = {a.account_id for a in session.query(Account.account_id).all()}
-        new_accounts = [a for a in accounts if a["account_id"] not in existing]
-        if new_accounts:
-            session.bulk_insert_mappings(Account, new_accounts)
+        session.bulk_insert_mappings(Account, accounts)
         session.bulk_insert_mappings(Transaction, rows)
 
 

@@ -41,7 +41,9 @@ def render() -> None:
                       "Adjust them in the sidebar under Advanced, or load another dataset.")
         return
 
-    view = cases.copy()
+    threshold = int(rules.cases.min_case_score)
+    hidden = int((cases["score"] < threshold).sum())
+    view = cases[cases["score"] >= threshold].copy()
     view["Pattern"] = view["patterns"].apply(c.pattern_label)
     view["Band"] = view["score"].apply(lambda s: risk_band(s).title())
     view["Status"] = view["status"].map(
@@ -50,8 +52,15 @@ def render() -> None:
     table = view[["case_id", "Pattern", "accounts", "total_amount", "score",
                   "Band", "Status"]]
 
-    st.caption(f"{len(table)} cases, highest risk first. Select a row to investigate. "
-               f"Cases scoring below {int(rules.cases.min_case_score)} are hidden by default.")
+    if table.empty:
+        c.empty_state("search_off", "Nothing above the threshold",
+                      f"All cases score below {threshold}. Lower the case threshold in "
+                      "config/rules.yaml to review weaker signals.")
+        return
+    hidden_note = f" {hidden} weaker case(s) are below the score {threshold} and hidden." \
+        if hidden else ""
+    st.caption(f"{len(table)} cases, highest risk first. Select a row to investigate."
+               f"{hidden_note}")
     event = st.dataframe(
         table, use_container_width=True, hide_index=True,
         on_select="rerun", selection_mode="single-row",
