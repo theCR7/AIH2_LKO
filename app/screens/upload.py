@@ -59,6 +59,50 @@ def _use_sample() -> None:
     da.bump_version()
 
 
+def _use_ibm() -> bool:
+    """Download (if needed), sample and detect the IBM AML HI-Small data.
+
+    Returns True when the dataset is loaded and detection ran. Kaggle/auth/network
+    problems are shown as one calm message (no traceback); details go to the run log.
+    """
+    from core.detection.runner import run_detection
+    from core.ingest import ibm_loader as ibm
+
+    with st.status("Loading IBM AML sample", expanded=True) as status:
+        try:
+            if ibm.is_downloaded():
+                status.write("Using the copy already downloaded to data/")
+                path = ibm.local_path()
+            else:
+                status.write("Downloading HI-Small_Trans.csv from Kaggle (about 475 MB)")
+                progress = st.empty()
+                path = ibm.download_hi_small(
+                    on_progress=lambda n: progress.caption(f"{n / 1e6:,.0f} MB downloaded"))
+                progress.empty()
+            status.write("Reading, keeping every laundering row, sampling the rest")
+            sample = ibm.load_ibm_subset(path=path)
+        except ibm.IbmLoaderError as exc:
+            c.add_log("IBM AML load failed", "Rule-based", str(exc))
+            status.update(label="Could not load the IBM sample", state="error")
+            st.error(str(exc))
+            return False
+        s = sample.stats
+        c.add_log("Loaded IBM AML", "Rule-based",
+                  f"{s['transactions']:,} of {s['usable_rows']:,} usable transfers "
+                  f"({s['laundering_kept']:,} labelled laundering), {s['accounts']:,} accounts")
+        status.write(f"Loaded {s['transactions']:,} transfers across {s['accounts']:,} "
+                     f"accounts; {s['laundering_kept']:,} are labelled laundering")
+        status.write("Running detectors and ranking cases")
+        st.session_state["rs_dataset"] = ibm.DATASET_ID
+        summary = run_detection(ibm.DATASET_ID)
+        c.add_log("Detection", "Rule-based",
+                  f"{summary.n_alerts} alerts -> {summary.n_cases} cases "
+                  f"in {summary.duration_ms} ms")
+        status.update(label=f"Ready: {summary.n_cases} cases flagged", state="complete")
+    da.bump_version()
+    return True
+
+
 def render() -> None:
     st.subheader("Upload transactions")
     st.caption("Load a transactions CSV, or use the built-in synthetic sample.")
@@ -78,6 +122,18 @@ def render() -> None:
             with friendly_errors("preparing the sample dataset"):
                 _use_sample()
             c.goto("detect")
+
+        from core.ingest import ibm_loader as ibm
+        st.caption("Or test on real labelled data: the public IBM AML benchmark (HI-Small) "
+                   "from Kaggle, sampled by laundering label to about 30,000 transfers. "
+                   + ("A local copy is ready." if ibm.is_downloaded()
+                      else "The first load downloads a 475 MB file."))
+        if st.button(f"{icon('cloud_download')} Load IBM AML sample"):
+            loaded = False
+            with friendly_errors("loading the IBM AML sample"):
+                loaded = _use_ibm()
+            if loaded:
+                c.goto("detect")
         return
 
     # --- Uploaded file: map columns, validate, load --------------------------

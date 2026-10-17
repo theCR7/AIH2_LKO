@@ -35,6 +35,21 @@ def _simple_digraph(bundle: GraphBundle) -> nx.DiGraph:
     return dg
 
 
+def _betweenness(dg: nx.DiGraph, rules: Rules) -> dict[str, float]:
+    """Betweenness centrality: exact on small graphs, seeded sample on large ones.
+
+    Exact weighted betweenness is O(V*E) and does not finish on real-scale graphs
+    (e.g. the IBM AML sample), so above ``betweenness_exact_max_nodes`` we estimate
+    from ``betweenness_sample_k`` pivots with a fixed seed (deterministic, CLAUDE.md
+    rule #11). Small graphs, including the seed-42 demo, keep the exact result.
+    """
+    cfg = rules.scoring.centrality
+    if dg.number_of_nodes() <= cfg.betweenness_exact_max_nodes:
+        return nx.betweenness_centrality(dg, weight="weight", normalized=True)
+    return nx.betweenness_centrality(dg, k=cfg.betweenness_sample_k, normalized=True,
+                                     seed=cfg.betweenness_seed)
+
+
 def _band(score: float, rules: Rules) -> str:
     """Map a score to a risk band using configured thresholds."""
     if score >= rules.scoring.bands["high"]:
@@ -56,8 +71,7 @@ def score_accounts(bundle: GraphBundle, alerts: list[Alert], rules: Rules,
     dg = _simple_digraph(bundle)
     pagerank = nx.pagerank(dg, weight="weight") if dg.number_of_edges() else {}
     max_pr = max(pagerank.values()) if pagerank else 1.0
-    betweenness = (nx.betweenness_centrality(dg, weight="weight", normalized=True)
-                   if dg.number_of_edges() else {})
+    betweenness = _betweenness(dg, rules) if dg.number_of_edges() else {}
 
     contributions: dict[str, list[str]] = {a: [] for a in flagged}
     scores: dict[str, float] = {a: 0.0 for a in flagged}

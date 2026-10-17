@@ -3,6 +3,13 @@
 version: 1
 currency: USD
 
+ingest:
+  ibm:                           # IBM AML HI-Small loader (core/ingest/ibm_loader.py)
+    max_transactions: 30000      # total sampled rows; all laundering rows are kept first
+    context_share: 0.6           # share of the rest drawn from laundering accounts' neighbours
+    seed: 42                     # deterministic sampling
+    currency: US Dollar          # one currency only, so amounts are comparable (shown as USD)
+
 exclude_account_types: [merchant, payroll]   # legitimate fan-in / fan-out by design
 
 cycles:
@@ -42,6 +49,9 @@ scoring:
   centrality:
     pagerank_weight: 10          # normalised 0..1 * weight
     betweenness_weight: 10
+    betweenness_exact_max_nodes: 2000   # above this many accounts, sample instead of exact (perf)
+    betweenness_sample_k: 256           # pivot nodes for the sampled estimate
+    betweenness_seed: 42                # keeps the sampled estimate deterministic
   bands: {high: 70, medium: 40}  # >=70 high, 40-69 medium, <40 low
 
 cases:

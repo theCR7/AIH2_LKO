@@ -28,12 +28,32 @@ def render() -> None:
 
     with friendly_errors("checking for ground-truth labels", stop=True):
         with session_scope() as session:
-            has_gt = (session.query(Transaction)
-                      .filter(Transaction.dataset_id == dataset,
-                              Transaction.gt_ring_id.isnot(None)).count() > 0)
+            base = session.query(Transaction).filter(Transaction.dataset_id == dataset)
+            has_gt = base.filter(Transaction.gt_ring_id.isnot(None)).count() > 0
+            has_txn_labels = base.filter(Transaction.is_laundering.isnot(None)).count() > 0
 
-    if not has_gt:
-        st.info("Quality metrics need the synthetic sample (uploaded CSVs carry no labels).")
+    if not has_gt and has_txn_labels:
+        # Real labelled data (e.g. the IBM AML sample): per-transaction labels only.
+        st.caption("This dataset labels individual transactions as laundering or not, "
+                   "so quality is measured per transaction. Per-pattern scores need "
+                   "the synthetic sample.")
+        with friendly_errors("computing metrics"):
+            alerts = da.load_alerts(dataset, version)
+            txn = metrics.txn_level_metrics(dataset, alerts)
+        m1, m2, m3 = st.columns(3)
+        m1.metric("Precision", f"{txn.precision:.3f}",
+                  help="Of the transactions the rules flagged, the share that are labelled "
+                       "laundering.")
+        m2.metric("Recall", f"{txn.recall:.3f}",
+                  help="Of the transactions labelled laundering, the share the rules flagged.")
+        m3.metric("F1", f"{txn.f1:.3f}",
+                  help="Harmonic mean of precision and recall.")
+        st.caption(f"{txn.tp:,} true positives · {txn.fp:,} false positives · "
+                   f"{txn.fn:,} missed. The rules are deterministic and explainable, "
+                   "not trained on this data.")
+    elif not has_gt:
+        st.info("Quality metrics need labelled data: use the synthetic or IBM AML sample "
+                "(uploaded CSVs carry no labels).")
     else:
         with friendly_errors("computing metrics"):
             alerts = da.load_alerts(dataset, version)

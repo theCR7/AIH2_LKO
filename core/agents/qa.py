@@ -16,7 +16,7 @@ from core.agents.llm import LLMResult, call_llm
 from core.config import CONFIG_DIR
 from core.schemas import CaseAnswer, EvidenceItem, EvidencePack
 
-_ACCT_RE = re.compile(r"\bACC_\d{4}\b", re.IGNORECASE)
+_ACCT_RE = re.compile(r"\bACC_\d{4,}\b", re.IGNORECASE)
 
 # Question intents the deterministic mock can answer, matched by keyword.
 _AMOUNT_WORDS = ("total", "amount", "how much", "sum", "value", "money", "volume")

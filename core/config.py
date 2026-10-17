@@ -65,6 +65,10 @@ class PassthroughRules(BaseModel):
 class CentralityRules(BaseModel):
     pagerank_weight: float = 10
     betweenness_weight: float = 10
+    # Exact betweenness is O(V*E); above this node count switch to a seeded sample.
+    betweenness_exact_max_nodes: int = 2000
+    betweenness_sample_k: int = 256
+    betweenness_seed: int = 42
 
 
 class ScoringRules(BaseModel):
@@ -93,11 +97,25 @@ class SarRules(BaseModel):
     baseline_manual_minutes_per_case: int = 240
 
 
+class IbmIngestRules(BaseModel):
+    """Sampling knobs for the IBM AML (HI-Small) loader (PRD F1.4)."""
+
+    max_transactions: int = 30000   # total sampled rows (keeps detection tractable)
+    context_share: float = 0.6      # share of the normal budget drawn from laundering neighbours
+    seed: int = 42                  # deterministic sampling
+    currency: str = "US Dollar"     # keep one currency so amounts are comparable (labelled USD)
+
+
+class IngestRules(BaseModel):
+    ibm: IbmIngestRules = Field(default_factory=IbmIngestRules)
+
+
 class Rules(BaseModel):
     """Typed view over ``config/rules.yaml`` (CLAUDE.md hard rule #2)."""
 
     version: int = 1
     currency: str = "USD"
+    ingest: IngestRules = Field(default_factory=IngestRules)
     exclude_account_types: list[str] = Field(default_factory=lambda: ["merchant", "payroll"])
     cycles: CycleRules = Field(default_factory=CycleRules)
     fan_in: FanInRules = Field(default_factory=FanInRules)

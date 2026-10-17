@@ -11,3 +11,5 @@ lib/
 *.html
 !app/**/*.html
 !docs/**/*.html
+
+data/*.part

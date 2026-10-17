@@ -21,7 +21,9 @@ from core.schemas import EvidenceItem, EvidencePack, SARNarrative, ValidationIss
 
 _AMOUNT_RE = re.compile(r"(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)\s*USD")
 _DATE_RE = re.compile(r"\b(\d{4}-\d{2}-\d{2})\b")
-_ACCT_RE = re.compile(r"\b(ACC_\d{4})\b")
+# 4+ digits: datasets with more than 9,999 accounts mint ids like ACC_10042; an
+# exact {4} match would silently skip account grounding for them.
+_ACCT_RE = re.compile(r"\b(ACC_\d{4,})\b")
 
 _SECTIONS = ["summary", "subjects", "activity", "red_flags", "conclusion"]
 
