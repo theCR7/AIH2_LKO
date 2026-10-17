@@ -1,0 +1,589 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RingSight System Report</title>
+<style>
+/* Layout: single reading column, full-width bands; stat tiles and SVG figures.
+   Tokens first (light), redefined for dark under both media and [data-theme]. */
+:root{
+  --bg:#ffffff; --surface:#ffffff; --surface-2:#f2f3ef; --border:#e3e4de;
+  --ink:#141613; --ink-2:#55564f; --muted:#86877f;
+  --accent:#1f6f4e;                /* deep green — AML/compliance, used sparingly */
+  --s1:#2a78d6;                    /* series 1 (blue) — validated slot 1 */
+  --s2:#eb6834;                    /* series 2 (orange) — validated slot 2 */
+  --high:#d03b3b; --med:#fab219; --low:#52514e;   /* risk bands (status) */
+  --grid:#e1e0d9; --axis:#c3c2b7;
+  --radius:10px;
+  --sans:"Inter",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,"SFMono-Regular",Menlo,monospace;
+  color-scheme:light;
+}
+/* Single light theme by request: white background for every viewer, OS theme ignored. */
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font-family:var(--sans);line-height:1.55;
+  font-size:15px;-webkit-font-smoothing:antialiased}
+.wrap{max-width:860px;margin:0 auto;
+  padding-left:max(18px,env(safe-area-inset-left,0px));
+  padding-right:max(18px,env(safe-area-inset-right,0px));}
+section{padding-block:30px;border-top:1px solid var(--border)}
+section:first-of-type{border-top:none}
+h1{font-size:30px;line-height:1.15;margin:0 0 6px;text-wrap:balance;letter-spacing:-.01em}
+h2{font-size:21px;margin:0 0 4px;letter-spacing:-.01em;text-wrap:balance}
+h3{font-size:15px;margin:18px 0 8px}
+p{margin:8px 0;color:var(--ink-2);max-width:68ch}
+.eyebrow{font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);margin:0 0 10px}
+.lede{font-size:16px;color:var(--ink-2)}
+.mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+strong{color:var(--ink);font-weight:600}
+a{color:var(--accent)}
+/* tiles */
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin:16px 0}
+.tile{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px}
+.tile .v{font-size:25px;font-weight:700;letter-spacing:-.02em;color:var(--ink)}
+.tile .l{font-size:12.5px;color:var(--muted);margin-top:2px}
+.tile .n{font-family:var(--mono)}
+/* figure card */
+.fig{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px 18px;margin:14px 0}
+.fig h3{margin:0 0 2px}
+.fig .cap{font-size:12.5px;color:var(--muted);margin:0 0 10px}
+.fig svg{display:block;width:100%;height:auto;max-width:100%;overflow:visible}
+.legend{display:flex;gap:16px;flex-wrap:wrap;font-size:12.5px;color:var(--ink-2);margin-top:8px}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.dot{width:11px;height:11px;border-radius:3px;display:inline-block}
+/* tables */
+.tbl{width:100%;overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:13.5px;min-width:520px}
+th,td{text-align:left;padding:9px 11px;border-bottom:1px solid var(--border);vertical-align:top}
+th{font-size:11.5px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);font-weight:600}
+td.n,th.n{text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums}
+/* pills */
+.pill{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:600;
+  padding:1px 8px;border-radius:999px;border:1px solid var(--border);white-space:nowrap}
+.pill .d{width:7px;height:7px;border-radius:50%;display:inline-block}
+.chip{font-family:var(--mono);font-size:11.5px;background:color-mix(in srgb,var(--s1) 14%,transparent);
+  color:var(--s1);border-radius:5px;padding:0 5px;margin-left:3px;white-space:nowrap}
+.chip.bad{background:color-mix(in srgb,var(--high) 20%,transparent);color:var(--high)}
+/* test-case cards */
+.tc{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
+  padding:0;margin:12px 0;overflow:hidden}
+.tc .hd{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;
+  padding:12px 15px;background:var(--surface-2);border-bottom:1px solid var(--border)}
+.tc .hd .t{font-weight:600;font-size:14.5px}
+.tc .bd{padding:13px 15px;display:grid;gap:9px}
+.tc .row{display:grid;grid-template-columns:76px 1fr;gap:10px;font-size:13.5px}
+.tc .row .k{color:var(--muted);font-size:12px;padding-top:1px}
+.tc .out{background:var(--surface-2);border-left:3px solid var(--accent);border-radius:6px;
+  padding:8px 11px;font-size:13.5px;color:var(--ink)}
+.tc .out.bad{border-left-color:var(--high)}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px}
+.card h3{margin-top:0}
+ul{margin:8px 0;padding-left:20px;color:var(--ink-2)}
+li{margin:4px 0}
+.tag{font-size:11px;font-weight:600;padding:1px 7px;border-radius:5px;border:1px solid var(--border);color:var(--ink-2)}
+.tag.det{color:var(--s1);border-color:color-mix(in srgb,var(--s1) 45%,var(--border))}
+.tag.llm{color:var(--s2);border-color:color-mix(in srgb,var(--s2) 45%,var(--border))}
+.foot{font-size:12px;color:var(--muted);padding-block:22px}
+@media (max-width:560px){ .two{grid-template-columns:1fr} h1{font-size:25px} .tc .row{grid-template-columns:1fr} }
+</style>
+
+</head>
+<body>
+<div class="wrap">
+
+<section>
+  <p class="eyebrow">AML fraud-ring investigation &amp; SAR copilot</p>
+  <h1>RingSight — system &amp; data report</h1>
+  <p class="lede">What the data holds, what the models output, how the pieces are
+  orchestrated, and the path from investigation reports to live prevention. Every
+  number below is measured from the IBM AML HI-Small dataset or from RingSight's own
+  deterministic runs — not estimated.</p>
+  <div class="tiles">
+    <div class="tile"><div class="v n">5.08M</div><div class="l">transactions analysed (IBM HI-Small)</div></div>
+    <div class="tile"><div class="v n">0.102%</div><div class="l">are labelled laundering</div></div>
+    <div class="tile"><div class="v n">5</div><div class="l">detection patterns, all rule-based</div></div>
+    <div class="tile"><div class="v n">100%</div><div class="l">SAR sentences traced to evidence</div></div>
+  </div>
+</section>
+
+<!-- ============ DATASET ============ -->
+<section>
+  <h2>1 · What the dataset contains</h2>
+  <p>RingSight runs on two interchangeable sources. A <strong>seeded synthetic
+  generator</strong> (500 accounts, ~5,000 transfers, patterns planted with ground
+  truth) drives the reproducible demo. For a real-world test it ingests the public
+  <strong>IBM AML "HI-Small"</strong> benchmark from Kaggle — a synthetic-but-realistic
+  bank-transfer log with a per-transaction laundering label.</p>
+
+  <div class="tbl"><table>
+    <tr><th>Field</th><th>Meaning</th><th>Example</th></tr>
+    <tr><td class="mono">Timestamp</td><td>when the transfer happened</td><td class="mono">2022/09/03 10:14</td></tr>
+    <tr><td class="mono">From / To Bank + Account</td><td>sender and receiver (an id is unique only within its bank)</td><td class="mono">Bank 011 · 8000EBD30</td></tr>
+    <tr><td class="mono">Amount Paid / Received</td><td>value sent and received</td><td class="mono">48,200.00</td></tr>
+    <tr><td class="mono">Payment Currency / Format</td><td>currency and rail (ACH, Cheque, Wire…)</td><td class="mono">US Dollar · ACH</td></tr>
+    <tr><td class="mono">Is Laundering</td><td>ground-truth label (0 / 1)</td><td class="mono">1</td></tr>
+  </table></div>
+  <div class="tiles">
+    <div class="tile"><div class="v n">30,528</div><div class="l">distinct banks</div></div>
+    <div class="tile"><div class="v n">18 days</div><div class="l">2022-09-01 → 2022-09-18</div></div>
+    <div class="tile"><div class="v n">5,177</div><div class="l">laundering transactions</div></div>
+    <div class="tile"><div class="v n">11.6%</div><div class="l">are same-account "reinvestments"</div></div>
+  </div>
+</section>
+
+<!-- ============ EDA ============ -->
+<section>
+  <h2>2 · Exploratory data analysis</h2>
+  <p>Three facts shape every downstream choice: the signal is <strong>extremely
+  rare</strong>, launderers <strong>prefer one payment rail</strong>, and amounts
+  are <strong>heavy-tailed</strong> so the median — not the mean — is the honest measure.</p>
+
+  <!-- class imbalance -->
+  <div class="fig">
+    <h3>Class imbalance — the needle in the haystack</h3>
+    <p class="cap">5,177 laundering transactions out of 5,078,345. Shown as 1,000 cells;
+    about 1 in 981 is laundering.</p>
+    <svg viewBox="0 0 680 92" role="img" aria-label="About one in 981 transactions is laundering">
+      <g>
+        <!-- 1000 tiny cells, 50 cols x 20 rows; ~1 highlighted -->
+        <!-- background grid of muted cells -->
+        <rect x="0" y="0" width="680" height="72" fill="none"/>
+        <g fill="var(--grid)">
+          <!-- draw rows procedurally via many rects is heavy; use a tiled pattern -->
+        </g>
+        <defs>
+          <pattern id="cells" width="13.6" height="13.6" patternUnits="userSpaceOnUse">
+            <rect width="11.6" height="11.6" rx="2" fill="var(--grid)"/>
+          </pattern>
+        </defs>
+        <rect x="0" y="0" width="680" height="68" fill="url(#cells)"/>
+        <rect x="0" y="0" width="11.6" height="11.6" rx="2" fill="var(--high)"/>
+        <text x="20" y="86" fill="var(--ink-2)" font-size="12" font-family="var(--mono)">↑ laundering (0.102%)</text>
+        <text x="678" y="86" fill="var(--muted)" font-size="12" text-anchor="end">legitimate traffic fills the rest</text>
+      </g>
+    </svg>
+    <p class="cap" style="margin-top:10px">Implication: a model that predicts "never
+    launders" is 99.9% accurate and useless. RingSight is tuned for recall and
+    explainability, and reports precision/recall honestly rather than headline accuracy.</p>
+  </div>
+
+  <!-- payment format grouped bars -->
+  <div class="fig">
+    <h3>Payment rail — the single strongest signal</h3>
+    <p class="cap">Share of transactions on each rail: laundering vs. all traffic.
+    Laundering is 86.6% ACH while ACH is only 11.8% of normal traffic.</p>
+    <svg viewBox="0 0 680 230" role="img" aria-label="Payment format: laundering is 86.6% ACH versus 11.8% overall">
+      <!-- scale: x 0..100% over plot 150..660 ; 4 groups -->
+      <!-- gridlines -->
+      <g font-size="11" font-family="var(--mono)" fill="var(--muted)" text-anchor="middle">
+        <line x1="150" y1="14" x2="150" y2="196" stroke="var(--axis)"/>
+        <line x1="277" y1="14" x2="277" y2="196" stroke="var(--grid)"/><text x="277" y="212">25%</text>
+        <line x1="405" y1="14" x2="405" y2="196" stroke="var(--grid)"/><text x="405" y="212">50%</text>
+        <line x1="532" y1="14" x2="532" y2="196" stroke="var(--grid)"/><text x="532" y="212">75%</text>
+        <line x1="660" y1="14" x2="660" y2="196" stroke="var(--grid)"/><text x="660" y="212">100%</text>
+        <text x="150" y="212">0</text>
+      </g>
+      <!-- rows: ACH, Cheque, Credit Card, Cash -->
+      <g font-size="12.5" fill="var(--ink-2)" font-family="var(--sans)">
+        <!-- ACH -->
+        <text x="142" y="35" text-anchor="end">ACH</text>
+        <rect x="150" y="26" width="441.7" height="13" rx="4" fill="var(--s2)"/><text x="597" y="37" font-size="11" font-family="var(--mono)" fill="var(--s2)">86.6%</text>
+        <rect x="150" y="42" width="60.2" height="13" rx="4" fill="var(--s1)"/><text x="216" y="53" font-size="11" font-family="var(--mono)" fill="var(--ink-2)">11.8%</text>
+        <!-- Cheque -->
+        <text x="142" y="85" text-anchor="end">Cheque</text>
+        <rect x="150" y="76" width="32.1" height="13" rx="4" fill="var(--s2)"/><text x="188" y="87" font-size="11" font-family="var(--mono)" fill="var(--ink-2)">6.3%</text>
+        <rect x="150" y="92" width="187.2" height="13" rx="4" fill="var(--s1)"/><text x="343" y="103" font-size="11" font-family="var(--mono)" fill="var(--ink-2)">36.7%</text>
+        <!-- Credit Card -->
+        <text x="142" y="135" text-anchor="end">Credit Card</text>
+        <rect x="150" y="126" width="20.4" height="13" rx="4" fill="var(--s2)"/><text x="176" y="137" font-size="11" font-family="var(--mono)" fill="var(--ink-2)">4.0%</text>
+        <rect x="150" y="142" width="133.1" height="13" rx="4" fill="var(--s1)"/><text x="289" y="153" font-size="11" font-family="var(--mono)" fill="var(--ink-2)">26.1%</text>
+        <!-- Cash -->
+        <text x="142" y="185" text-anchor="end">Cash</text>
+        <rect x="150" y="176" width="10.7" height="13" rx="4" fill="var(--s2)"/><text x="166" y="187" font-size="11" font-family="var(--mono)" fill="var(--ink-2)">2.1%</text>
+        <rect x="150" y="192" width="49.5" height="13" rx="4" fill="var(--s1)"/><text x="205" y="203" font-size="11" font-family="var(--mono)" fill="var(--ink-2)">9.7%</text>
+      </g>
+    </svg>
+    <div class="legend">
+      <span><i class="dot" style="background:var(--s2)"></i> laundering transactions</span>
+      <span><i class="dot" style="background:var(--s1)"></i> all transactions</span>
+    </div>
+  </div>
+
+  <div class="two">
+    <!-- currency -->
+    <div class="fig">
+      <h3>Currency mix</h3>
+      <p class="cap">Top currencies, all traffic. RingSight keeps one currency per run so amounts stay comparable.</p>
+      <svg viewBox="0 0 320 180" role="img" aria-label="Currency distribution: US Dollar 37.3%, Euro 23%">
+        <g font-size="11" font-family="var(--sans)" fill="var(--ink-2)">
+          <text x="78" y="25" text-anchor="end">US Dollar</text><rect x="84" y="16" width="168" height="12" rx="4" fill="var(--s1)"/><text x="258" y="26" font-family="var(--mono)" font-size="10">37.3%</text>
+          <text x="78" y="49" text-anchor="end">Euro</text><rect x="84" y="40" width="104" height="12" rx="4" fill="var(--s1)"/><text x="194" y="50" font-family="var(--mono)" font-size="10">23.0%</text>
+          <text x="78" y="73" text-anchor="end">Swiss Franc</text><rect x="84" y="64" width="21" height="12" rx="4" fill="var(--s1)"/><text x="111" y="74" font-family="var(--mono)" font-size="10">4.6%</text>
+          <text x="78" y="97" text-anchor="end">Yuan</text><rect x="84" y="88" width="19" height="12" rx="4" fill="var(--s1)"/><text x="109" y="98" font-family="var(--mono)" font-size="10">4.2%</text>
+          <text x="78" y="121" text-anchor="end">Shekel</text><rect x="84" y="112" width="17" height="12" rx="4" fill="var(--s1)"/><text x="107" y="122" font-family="var(--mono)" font-size="10">3.8%</text>
+          <text x="78" y="145" text-anchor="end">Rupee</text><rect x="84" y="136" width="17" height="12" rx="4" fill="var(--s1)"/><text x="107" y="146" font-family="var(--mono)" font-size="10">3.7%</text>
+          <text x="78" y="169" text-anchor="end">Other</text><rect x="84" y="160" width="106" height="12" rx="4" fill="var(--axis)"/><text x="196" y="170" font-family="var(--mono)" font-size="10">23.4%</text>
+        </g>
+      </svg>
+    </div>
+    <!-- amount -->
+    <div class="fig">
+      <h3>Amount (median vs. 90th pct)</h3>
+      <p class="cap">USD. Laundering transfers run larger; means are useless here (one outlier is $84B).</p>
+      <svg viewBox="0 0 320 180" role="img" aria-label="Median laundering amount 8667 USD vs 1406 normal">
+        <g font-size="11" font-family="var(--mono)" fill="var(--muted)" text-anchor="middle">
+          <line x1="96" y1="14" x2="96" y2="140" stroke="var(--axis)"/>
+          <line x1="300" y1="14" x2="300" y2="140" stroke="var(--grid)"/>
+        </g>
+        <g font-size="11" font-family="var(--sans)" fill="var(--ink-2)">
+          <text x="90" y="34" text-anchor="end">Median</text>
+          <rect x="96" y="25" width="34" height="13" rx="4" fill="var(--s2)"/><text x="137" y="36" font-family="var(--mono)" font-size="10" fill="var(--s2)">$8,667</text>
+          <rect x="96" y="41" width="6" height="13" rx="3" fill="var(--s1)"/><text x="109" y="52" font-family="var(--mono)" font-size="10">$1,406</text>
+          <text x="90" y="96" text-anchor="end">90th pct</text>
+          <rect x="96" y="87" width="200" height="13" rx="4" fill="var(--s2)"/><text x="292" y="98" font-family="var(--mono)" font-size="10" fill="#fff">$171k</text>
+          <rect x="96" y="103" width="167" height="13" rx="4" fill="var(--s1)"/><text x="259" y="114" font-family="var(--mono)" font-size="10" fill="#fff">$143k</text>
+        </g>
+        <g class="legend-svg" font-size="10.5" font-family="var(--sans)">
+          <rect x="96" y="150" width="10" height="10" rx="2" fill="var(--s2)"/><text x="111" y="159" fill="var(--ink-2)">laundering</text>
+          <rect x="188" y="150" width="10" height="10" rx="2" fill="var(--s1)"/><text x="203" y="159" fill="var(--ink-2)">normal</text>
+        </g>
+      </svg>
+    </div>
+  </div>
+</section>
+
+<!-- ============ SEGREGATION ============ -->
+<section>
+  <h2>3 · How the data is segregated</h2>
+  <p>Two kinds of separation run before any model sees the data.</p>
+
+  <h3>Sampling &amp; labelling (from 5M rows to a workable graph)</h3>
+  <p>5.08M transactions cannot be loaded or graphed interactively, and only
+  <strong>37% of laundering is USD→USD</strong>. The loader segregates in four steps,
+  all seeded so the result is identical every run:</p>
+  <div class="tbl"><table>
+    <tr><th>Step</th><th>Rule</th><th>Effect (IBM HI-Small)</th></tr>
+    <tr><td>Single currency</td><td>keep USD→USD only, so amounts are comparable</td><td class="mono">5.08M → 1.67M</td></tr>
+    <tr><td>Keep all positives</td><td>every laundering row is retained first</td><td class="mono">+1,912 labelled</td></tr>
+    <tr><td>Seeded context + background</td><td>fill the rest with neighbours of flagged accounts, then random noise</td><td class="mono">+28,088 normal</td></tr>
+    <tr><td>Canonical remap</td><td>(bank, account) → <span class="mono">ACC_0001…</span>; sorted txns → <span class="mono">T000001…</span></td><td class="mono">30,000 txns / 29,459 accts</td></tr>
+  </table></div>
+
+  <h3>Legitimate vs. suspect (so good accounts aren't flagged)</h3>
+  <p>In the synthetic source, <span class="mono">payroll</span> and
+  <span class="mono">merchant</span> accounts fan out and fan in <em>by design</em>.
+  They are tagged by <span class="mono">account_type</span> and excluded from the
+  detectors, so legitimate hubs never raise an alert. Oversized hubs are also split
+  out: a group larger than <span class="mono">max_case_accounts</span> or a payer with
+  more than <span class="mono">max_receivers</span> counterparties is treated as an
+  institution, not a ring. Every threshold lives in <span class="mono">config/rules.yaml</span>.</p>
+
+  <h3>Deterministic vs. generative</h3>
+  <p>The last separation is architectural and the reason the output is defensible:
+  detection and validation are <span class="tag det">rule-based</span> and reproducible;
+  only the SAR wording is <span class="tag llm">LLM</span>. The machine's judgement and
+  the machine's prose are never entangled.</p>
+</section>
+
+<!-- ============ ORCHESTRATION ============ -->
+<section>
+  <h2>4 · Orchestration — coordinator &amp; specialist agents</h2>
+  <p>SAR drafting is a hub-and-spoke pipeline. A plain-Python <strong>coordinator</strong>
+  (the orchestrator state machine) calls four single-purpose agents in order and owns
+  the retry loop; the agents never call each other. Two are deterministic, two are the LLM.</p>
+
+  <div class="fig">
+    <svg viewBox="0 0 680 330" role="img" aria-label="Hub and spoke: coordinator calls Evidence Builder, Typology, Narrative and Validator">
+      <!-- spokes -->
+      <g stroke="var(--axis)" stroke-width="1.5">
+        <line x1="340" y1="165" x2="150" y2="70"/>
+        <line x1="340" y1="165" x2="530" y2="70"/>
+        <line x1="340" y1="165" x2="530" y2="262"/>
+        <line x1="340" y1="165" x2="150" y2="262"/>
+      </g>
+      <!-- retry arc Validator -> Narrative -->
+      <path d="M470 262 Q430 215 470 95" fill="none" stroke="var(--high)" stroke-width="1.5" stroke-dasharray="5 4"/>
+      <text x="452" y="182" font-size="11" fill="var(--high)" font-family="var(--mono)">retry ≤2</text>
+      <!-- hub -->
+      <g>
+        <rect x="258" y="135" width="164" height="60" rx="10" fill="var(--accent)"/>
+        <text x="340" y="160" text-anchor="middle" font-size="13.5" font-weight="700" fill="#fff" font-family="var(--sans)">Coordinator</text>
+        <text x="340" y="178" text-anchor="middle" font-size="11" fill="#fff" font-family="var(--mono)">orchestrator.py</text>
+      </g>
+      <!-- spoke nodes -->
+      <!-- 1 Evidence -->
+      <g font-family="var(--sans)">
+        <rect x="40" y="40" width="200" height="58" rx="9" fill="var(--surface-2)" stroke="var(--s1)"/>
+        <text x="52" y="60" font-size="12.5" font-weight="600" fill="var(--ink)">1 · Evidence Builder</text>
+        <text x="52" y="78" font-size="11" fill="var(--ink-2)">compact pack, stable E-ids</text>
+        <text x="52" y="92" font-size="10.5" fill="var(--s1)" font-family="var(--mono)">deterministic</text>
+      </g>
+      <!-- 2 Typology -->
+      <g font-family="var(--sans)">
+        <rect x="440" y="40" width="200" height="58" rx="9" fill="var(--surface-2)" stroke="var(--s2)"/>
+        <text x="452" y="60" font-size="12.5" font-weight="600" fill="var(--ink)">2 · Typology Agent</text>
+        <text x="452" y="78" font-size="11" fill="var(--ink-2)">classifies the scheme</text>
+        <text x="452" y="92" font-size="10.5" fill="var(--s2)" font-family="var(--mono)">LLM</text>
+      </g>
+      <!-- 3 Narrative -->
+      <g font-family="var(--sans)">
+        <rect x="440" y="232" width="200" height="58" rx="9" fill="var(--surface-2)" stroke="var(--s2)"/>
+        <text x="452" y="252" font-size="12.5" font-weight="600" fill="var(--ink)">3 · Narrative Agent</text>
+        <text x="452" y="270" font-size="11" fill="var(--ink-2)">writes the 5-part SAR</text>
+        <text x="452" y="284" font-size="10.5" fill="var(--s2)" font-family="var(--mono)">LLM</text>
+      </g>
+      <!-- 4 Validator -->
+      <g font-family="var(--sans)">
+        <rect x="40" y="232" width="200" height="58" rx="9" fill="var(--surface-2)" stroke="var(--s1)"/>
+        <text x="52" y="252" font-size="12.5" font-weight="600" fill="var(--ink)">4 · Validator</text>
+        <text x="52" y="270" font-size="11" fill="var(--ink-2)">checks every sentence</text>
+        <text x="52" y="284" font-size="10.5" fill="var(--s1)" font-family="var(--mono)">deterministic</text>
+      </g>
+    </svg>
+    <div class="legend">
+      <span><i class="dot" style="background:var(--s1)"></i> deterministic (rule-based, reproducible)</span>
+      <span><i class="dot" style="background:var(--s2)"></i> LLM (Groq gpt-oss)</span>
+      <span><i class="dot" style="background:var(--high)"></i> validator feedback loop</span>
+    </div>
+  </div>
+
+  <div class="tbl"><table>
+    <tr><th>Agent</th><th>Does</th><th>Guarantee</th></tr>
+    <tr><td><strong>Evidence Builder</strong> <span class="tag det">det</span></td><td>turns a case into ≤40 numbered evidence items (transactions, shared ids, metrics)</td><td>only this compact pack is sent to the LLM — never raw data</td></tr>
+    <tr><td><strong>Typology Agent</strong> <span class="tag llm">LLM</span></td><td>classifies the laundering typology with a confidence and cited evidence</td><td>output parsed into a typed schema</td></tr>
+    <tr><td><strong>Narrative Agent</strong> <span class="tag llm">LLM</span></td><td>drafts the 5-section SAR; every sentence carries evidence ids</td><td>rewrites only failing sentences on retry</td></tr>
+    <tr><td><strong>Validator</strong> <span class="tag det">det</span></td><td>checks each sentence's amounts, dates, accounts and citations against the pack; bans speculation</td><td>the Grounding Score; it is the source of truth, not the model</td></tr>
+  </table></div>
+  <p>The coordinator persists a versioned draft, a tamper-evident audit entry, and a
+  <span class="mono">decision_log</span> row with confidence signals (evidence coverage,
+  first-try pass rate, retries, fallback used) — the raw material for section 7.</p>
+</section>
+
+<!-- ============ TEST CASES ============ -->
+<section>
+  <h2>5 · Five representative outputs</h2>
+  <p>What a case looks like after it passes through the pipeline. Cases 1–2 and 4–5
+  are from the seeded demo; case 3 is a live draft on real IBM data.</p>
+
+  <div class="tc">
+    <div class="hd"><span class="t">TC-1 · Circular flow (layering)</span>
+      <span class="pill"><i class="d" style="background:var(--high)"></i>High · 77</span></div>
+    <div class="bd">
+      <div class="row"><span class="k">Input</span><div>8 accounts move <span class="mono">500,362 USD</span> in a loop, ~93% retained per hop, back to origin within 2 days.</div></div>
+      <div class="row"><span class="k">Detected</span><div>Circular flow + rapid pass-through · typology <strong>Layering via circular transfers</strong></div></div>
+      <div class="row"><span class="k">SAR</span><div class="out">"The case involves nine transactions totaling 444,342.73 USD conducted between 2026-09-03 and 2026-09-12."<span class="chip">E15</span> <span style="color:var(--muted)">· Grounding 100%</span></div></div>
+    </div>
+  </div>
+
+  <div class="tc">
+    <div class="hd"><span class="t">TC-2 · Structuring (fan-in / smurfing)</span>
+      <span class="pill"><i class="d" style="background:var(--med)"></i>Medium · 39</span></div>
+    <div class="bd">
+      <div class="row"><span class="k">Input</span><div>7 senders each pay under <span class="mono">10,000 USD</span> into one account within 48h (<span class="mono">42,874 USD</span> total).</div></div>
+      <div class="row"><span class="k">Detected</span><div>Fan-in structuring · threshold ≥5 senders, each &lt; 10,000, within 48h</div></div>
+      <div class="row"><span class="k">SAR</span><div class="out">"7 distinct senders paid 42,874.00 USD into ACC_0069 within 48h, each below 10,000.00 USD."<span class="chip">E1</span></div></div>
+    </div>
+  </div>
+
+  <div class="tc">
+    <div class="hd"><span class="t">TC-3 · Mule fan-out (live, real IBM data)</span>
+      <span class="pill"><i class="d" style="background:var(--high)"></i>High · 89</span></div>
+    <div class="bd">
+      <div class="row"><span class="k">Input</span><div>Real IBM account disperses funds to many receivers in two days.</div></div>
+      <div class="row"><span class="k">Detected</span><div>Fan-out layering · typology <strong>Mule fan-out distribution</strong> · drafted live on Groq gpt-oss-120b in 20.1s</div></div>
+      <div class="row"><span class="k">SAR</span><div class="out">"ACC_0619 dispersed 69,498.19 USD to seven receivers within 48 hours starting 2022-09-07."<span class="chip">E2</span> <span style="color:var(--muted)">· 14/14 sentences cited · Grounding 100%</span></div></div>
+    </div>
+  </div>
+
+  <div class="tc">
+    <div class="hd"><span class="t">TC-4 · Rapid pass-through</span>
+      <span class="pill"><i class="d" style="background:var(--med)"></i>Medium · 67</span></div>
+    <div class="bd">
+      <div class="row"><span class="k">Input</span><div>An account receives an inflow and forwards ≥90% of it within 24 hours.</div></div>
+      <div class="row"><span class="k">Detected</span><div>Rapid pass-through (mule hop) · inflow ≥ 5,000, outflow ≥ 90% within 24h</div></div>
+      <div class="row"><span class="k">SAR</span><div class="out">"ACC_0376 received 56,304.99 USD on 2022-09-11 and forwarded 94% within 24h."<span class="chip">E3</span></div></div>
+    </div>
+  </div>
+
+  <div class="tc">
+    <div class="hd"><span class="t">TC-5 · Hallucination caught by the validator</span>
+      <span class="pill"><i class="d" style="background:var(--high)"></i>Blocked · needs review</span></div>
+    <div class="bd">
+      <div class="row"><span class="k">Input</span><div>A sentence is injected that cites a <em>real</em> evidence id but invents facts.</div></div>
+      <div class="row"><span class="k">Output</span><div class="out bad">✗ "ACC_9999 transferred 1,000,000.00 USD as part of the scheme."<span class="chip bad">E1</span><br><span style="color:var(--high);font-size:12.5px">amount not in cited evidence · account ACC_9999 not in evidence → Grounding drops below 100%, approval blocked</span></div></div>
+      <div class="row"><span class="k">Why</span><div>The deterministic validator checks content, not just that a citation exists. This is the core differentiator: no unsupported sentence reaches a filed report.</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ TECH ============ -->
+<section>
+  <h2>6 · Technology &amp; models</h2>
+  <p>Deliberately lightweight: graph algorithms do the detection, an LLM only writes
+  prose, and a gateway makes the LLM swappable and offline-safe.</p>
+  <div class="tbl"><table>
+    <tr><th>Layer</th><th>Technology</th><th>Role in RingSight</th></tr>
+    <tr><td>Graph analytics</td><td class="mono">NetworkX</td><td><span class="mono">simple_cycles</span> (circular flows), PageRank + betweenness (account centrality in risk scoring), connected components (case grouping)</td></tr>
+    <tr><td>Graph visual</td><td class="mono">pyvis</td><td>interactive case subgraph, vis.js inlined so it works offline</td></tr>
+    <tr><td>Data</td><td class="mono">pandas · Faker</td><td>chunked ingest of the 475MB file; seeded synthetic generator</td></tr>
+    <tr><td>Contracts</td><td class="mono">Pydantic v2</td><td>every LLM response parsed into a typed schema</td></tr>
+    <tr><td>LLM gateway</td><td class="mono">LiteLLM</td><td>one entry point: cache, retries, provider fallback, mock mode</td></tr>
+    <tr><td>Primary model</td><td class="mono">Groq · openai/gpt-oss-120b</td><td>typology + SAR narrative (verified 100% grounded, ~20s)</td></tr>
+    <tr><td>Fallback model</td><td class="mono">Groq · openai/gpt-oss-20b</td><td>used automatically on rate-limit / error</td></tr>
+    <tr><td>Offline mode</td><td class="mono">deterministic mock</td><td>template SAR that also passes validation — zero-network demo</td></tr>
+    <tr><td>Store · export</td><td class="mono">SQLAlchemy/SQLite · ReportLab</td><td>portable DB, hash-chained audit log, PDF SAR</td></tr>
+  </table></div>
+  <p>No machine-learning model is trained today — detection is 100% rule-based and
+  explainable. That is a feature for a regulator, and the starting point for section 7.</p>
+</section>
+
+<!-- ============ ROADMAP ============ -->
+<section>
+  <h2>7 · From reports to prevention</h2>
+  <p>Today RingSight produces a report for a human to sign. Every run also quietly
+  records the data needed to go further. Here is the honest current state and the path.</p>
+
+  <div class="two">
+    <div class="card">
+      <h3>What already accumulates</h3>
+      <ul>
+        <li>Labelled alerts with the exact transactions behind them</li>
+        <li>Analyst verdicts (approve / reject + reason) in a tamper-evident log</li>
+        <li>Grounding scores and <span class="mono">ConfidenceSignals</span> per draft in <span class="mono">decision_log</span></li>
+        <li>A deterministic, reproducible feature set per account and case</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>Fine-tune / train <span class="tag">next</span></h3>
+      <ul>
+        <li>Learn a <strong>risk re-ranker</strong> from analyst verdicts to cut false positives (the IBM run shows the headroom: precision 0.54)</li>
+        <li><strong>Distil the narrative model</strong> on approved SARs for a smaller, cheaper, house-style writer</li>
+        <li><strong>Calibrate confidence</strong> so low-confidence drafts auto-escalate</li>
+        <li>Swap NetworkX → a GNN behind the same <span class="mono">Alert</span> interface</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="fig">
+    <h3>Batch report → live prevention</h3>
+    <p class="cap">The detectors are pure functions over a graph window, so the same logic moves from "explain after the fact" to "act before settlement".</p>
+    <svg viewBox="0 0 680 120" role="img" aria-label="Pipeline from batch detection to streaming prevention">
+      <g font-family="var(--sans)">
+        <rect x="6" y="40" width="150" height="46" rx="8" fill="var(--surface-2)" stroke="var(--s1)"/>
+        <text x="81" y="62" text-anchor="middle" font-size="12" font-weight="600" fill="var(--ink)">Batch detect</text>
+        <text x="81" y="77" text-anchor="middle" font-size="10" fill="var(--muted)" font-family="var(--mono)">today</text>
+
+        <rect x="186" y="40" width="150" height="46" rx="8" fill="var(--surface-2)" stroke="var(--s1)"/>
+        <text x="261" y="62" text-anchor="middle" font-size="12" font-weight="600" fill="var(--ink)">Stream window</text>
+        <text x="261" y="77" text-anchor="middle" font-size="10" fill="var(--muted)" font-family="var(--mono)">Kafka · incremental graph</text>
+
+        <rect x="366" y="40" width="150" height="46" rx="8" fill="var(--surface-2)" stroke="var(--s2)"/>
+        <text x="441" y="62" text-anchor="middle" font-size="12" font-weight="600" fill="var(--ink)">Score on the fly</text>
+        <text x="441" y="77" text-anchor="middle" font-size="10" fill="var(--muted)" font-family="var(--mono)">rules + risk model</text>
+
+        <rect x="546" y="40" width="128" height="46" rx="8" fill="var(--accent)"/>
+        <text x="610" y="62" text-anchor="middle" font-size="12" font-weight="700" fill="#fff">Hold / block</text>
+        <text x="610" y="77" text-anchor="middle" font-size="10" fill="#fff" font-family="var(--mono)">pre-settlement</text>
+
+        <g stroke="var(--axis)" stroke-width="1.5" marker-end="url(#ar)">
+          <line x1="156" y1="63" x2="184" y2="63"/>
+          <line x1="336" y1="63" x2="364" y2="63"/>
+          <line x1="516" y1="63" x2="544" y2="63"/>
+        </g>
+        <defs><marker id="ar" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="var(--axis)"/></marker></defs>
+      </g>
+    </svg>
+    <p class="cap" style="margin-top:8px"><strong>Prevention, not just paperwork:</strong>
+    when a transaction entering the window would close a cycle or complete a structuring
+    pattern, the system can hold it, step up authentication, or block it — then still
+    emit the grounded SAR for the record. The report becomes the audit trail of an action,
+    not the end of the process.</p>
+  </div>
+  <p style="font-size:12.5px;color:var(--muted)">Current status: sections 1–6 are built
+  and verified. Section 7's "next" items are the designed roadmap — the hooks
+  (<span class="mono">decision_log</span>, the <span class="mono">Alert</span>
+  interface, the gateway) exist today; the models and the streaming path do not yet.</p>
+</section>
+
+<!-- ============ WHY BETTER ============ -->
+<section>
+  <h2>8 · Why this beats the alternatives</h2>
+  <p>The problem is that analysts spend days stitching evidence from several systems and
+  writing narratives that get sent back for being vague. RingSight is built against both
+  the manual status quo and the black-box ML that compliance teams can't defend.</p>
+  <div class="tbl"><table>
+    <tr><th>Dimension</th><th>Manual / status quo</th><th>Black-box ML scorer</th><th>RingSight</th></tr>
+    <tr><td>Time per case</td><td>hours to days</td><td>fast score, slow to justify</td><td><strong>SAR in ~20s</strong> live, &lt;2s cached</td></tr>
+    <tr><td>Why it flagged</td><td>analyst reasons by hand</td><td>"the model says so"</td><td><strong>plain rule + the numbers</strong>, shown first</td></tr>
+    <tr><td>Every claim sourced</td><td>manual, error-prone</td><td>n/a</td><td><strong>100%</strong> — validator blocks the rest</td></tr>
+    <tr><td>Hallucination risk</td><td>human error</td><td>—</td><td><strong>caught deterministically</strong> (TC-5)</td></tr>
+    <tr><td>Needs training data</td><td>no</td><td>yes (labelled, scarce)</td><td><strong>no</strong> — rules work on day one</td></tr>
+    <tr><td>Reproducible / auditable</td><td>no</td><td>rarely</td><td><strong>identical every run</strong> + hash-chained log</td></tr>
+    <tr><td>Works offline</td><td>—</td><td>—</td><td><strong>yes</strong> (mock + inlined graph)</td></tr>
+  </table></div>
+  <p>The one-line difference: <strong>RingSight separates the machine's judgement from
+  the machine's prose.</strong> Detection and validation are deterministic and
+  explainable; the LLM only phrases what the evidence already proves — and a sentence it
+  can't prove never reaches the filing.</p>
+</section>
+
+<!-- ============ PERFORMANCE ============ -->
+<section>
+  <h2>9 · Performance, confidence &amp; metrics</h2>
+  <p>All measured, not estimated. Synthetic figures are against planted ground truth;
+  IBM figures are against the dataset's own labels.</p>
+
+  <div class="tiles">
+    <div class="tile"><div class="v n">100%</div><div class="l">ring recall, synthetic (every planted ring found)</div></div>
+    <div class="tile"><div class="v n">&lt;1.5s</div><div class="l">detect ~5k txns · 4–6s on 30k IBM txns</div></div>
+    <div class="tile"><div class="v n">100%</div><div class="l">SAR grounding on verified cases</div></div>
+    <div class="tile"><div class="v n">57 / 57</div><div class="l">automated tests passing</div></div>
+  </div>
+
+  <h3>Detection quality</h3>
+  <div class="tbl"><table>
+    <tr><th>Dataset / pattern</th><th class="n">Precision</th><th class="n">Recall</th><th class="n">F1</th></tr>
+    <tr><td>Synthetic — Circular flow</td><td class="n">1.00</td><td class="n">1.00</td><td class="n">1.00</td></tr>
+    <tr><td>Synthetic — Fan-out layering</td><td class="n">1.00</td><td class="n">1.00</td><td class="n">1.00</td></tr>
+    <tr><td>Synthetic — Fan-in structuring</td><td class="n">0.40</td><td class="n">1.00</td><td class="n">0.57</td></tr>
+    <tr><td>Synthetic — Shared identifier</td><td class="n">0.50</td><td class="n">1.00</td><td class="n">0.67</td></tr>
+    <tr><td>Synthetic — Rapid pass-through</td><td class="n">0.33</td><td class="n">1.00</td><td class="n">0.50</td></tr>
+    <tr><td><strong>IBM HI-Small</strong> (per transaction)</td><td class="n">0.544</td><td class="n">0.149</td><td class="n">0.233</td></tr>
+  </table></div>
+  <p style="font-size:13px"><strong>Reading these honestly:</strong> recall is 100% on
+  synthetic because the detectors are tuned to those typologies; precision is deliberately
+  below 1.0 (realistic false positives from look-alike activity). On real IBM data recall
+  is low because only 37% of its laundering is single-currency and the rules aren't trained
+  on it — so IBM is a <em>scale and explainability</em> proof, not an accuracy claim.</p>
+
+  <h3>Confidence signals — logged on every draft</h3>
+  <p>RingSight does not show a made-up "confidence %". It records defined signals per draft
+  in <span class="mono">decision_log</span>, which are what a future calibration model consumes:</p>
+  <div class="tbl"><table>
+    <tr><th>Signal</th><th>Definition</th><th>Typical (verified case)</th></tr>
+    <tr><td class="mono">grounding_score</td><td>share of sentences whose amounts/dates/accounts/citations all check out</td><td class="n">100%</td></tr>
+    <tr><td class="mono">evidence_coverage</td><td>share of the evidence pack actually cited</td><td class="n">1.0</td></tr>
+    <tr><td class="mono">validator_pass_rate_first_try</td><td>sentences valid before any retry</td><td class="n">0.9–1.0</td></tr>
+    <tr><td class="mono">retries_used</td><td>narrative↔validator repair rounds (max 2)</td><td class="n">0–2</td></tr>
+    <tr><td class="mono">llm_self_confidence</td><td>typology confidence (one weak signal, never a gate)</td><td class="n">~0.86</td></tr>
+    <tr><td class="mono">fallback_used</td><td>whether the backup model answered</td><td class="n">false</td></tr>
+  </table></div>
+
+  <h3>Reliability &amp; speed</h3>
+  <ul>
+    <li><strong>Determinism:</strong> same seed → byte-identical case/evidence ids and a stable fingerprint (machine-checked).</li>
+    <li><strong>Cached replay:</strong> a previously drafted SAR returns in ~0.0s, every agent call a cache hit — the live demo never waits on the network twice.</li>
+    <li><strong>Graceful degradation:</strong> Groq 120b → Groq 20b → deterministic mock; the app never crashes on an LLM failure, and the mock still passes validation.</li>
+    <li><strong>Guardrail proven:</strong> an injected false sentence citing a real id is caught every time (precision of the check, not luck).</li>
+  </ul>
+</section>
+
+<div class="foot">RingSight · figures measured from IBM AML HI-Small and RingSight runs, 2026-10-17 · synthetic data only.</div>
+
+</div>
+
+</body>
+</html>
