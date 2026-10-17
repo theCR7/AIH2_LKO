@@ -154,3 +154,25 @@ Thresholds F3/F4 were chosen after seeing IBM output — principled (an institut
 2. *Main story (about 5 min):* Upload → **Use sample dataset** → Detect → open C-001 → Draft SAR → click a citation chip → edit one sentence → sign-off → export.
 3. *Real-data segment (60–90 s, optional):* Upload → **Load IBM AML sample** (~15 s) → 108-case queue → open the top case → Draft SAR → Metrics shows the honest P/R/F1.
 4. *If the network or Groq fails:* set `LLM_MODE=mock` in `.env` and restart — instant and offline (IBM needs the cached file).
+
+---
+
+## 8. SAML-D loader and currency handling
+
+**Built.** `core/ingest/saml_loader.py` (download, two-pass streaming sample, remap, persist, saved sample), a shared resumable downloader (`core/ingest/kaggle.py`, now also used by the IBM loader), a **Load SAML-D sample** card on Upload, and **recall by laundering type** on Metrics. Sampling knobs are in `config/rules.yaml` (`ingest.saml`).
+
+| Item | Result (real file, 996,168,850 bytes) |
+|---|---|
+| Funnel | 9,504,852 rows, 8,414,112 UK-pound rows (88.5%); 9,873 laundering, **6,171 kept (62.5%)** |
+| Sample | 40,000 txns, 44,003 accounts; 6,171 laundering (15.4%), 20,297 neighbour rows, 13,532 background rows |
+| Speed | first load **26.8 s** (scans the file twice), then instant from the saved sample; detection **4.4 s** |
+| Detection | 322 alerts (fan-in 54, fan-out 197, pass-through 71), 301 cases |
+| Quality, rules as shipped | precision **0.073**, recall **0.021**, F1 0.033 (130 TP / 1,640 FP / 6,041 missed) |
+| Recall by type | Smurfing 0.1%, Cash_Withdrawal 0%, Structuring 0.3%, Deposit-Send 9.9%, Layered_Fan_In 0.2%, Layered_Fan_Out 0.6% |
+| Live SAR, top case (Groq `gpt-oss-120b`) | every amount in **GBP**; **17 of 17 statements cited**; 12.4 s |
+
+The rules score poorly here for the reasons in `docs/SAML_D_EXPERIMENT.md`: month-long typologies against 48-hour windows, and amounts that do not separate laundering from normal traffic. This section proves the data path works, not that the rules fit it.
+
+**Currency was hard-coded as USD.** `fmt_amount` defaulted to "USD" and the validator only recognised "USD", so a UK-pound dataset would have produced SARs that call pounds dollars. Fixed at the source: the loaded dataset's own currency (`core.utils.active_currency`, read from `transactions.currency`, cache reset whenever data is reloaded) is now used by every amount in the case queue, reasons, evidence, narrative, PDF and graph labels. The validator now recognises 17 ISO codes, flags a sentence that states a different currency than its cited evidence, and does not mistake words after a number ("5 ACH") for amounts. 11 new offline tests (73 total) cover selection, remapping, the saved sample, zip handling, the currency plumbing, per-type recall and the validator. Thresholds in `rules.yaml` (for example 10,000 and 50,000) are plain numbers and are read in the dataset's currency.
+
+**Caveats.** The sample over-represents laundering (15.4%), so precision is flattered; the Metrics note says so. Only UK-pound rows are kept, so 37.5% of the laundering rows are excluded (not counted as missed). The generic CSV upload still defaults to USD unless a currency column is mapped. The LLM prompts still show a USD example; the validator catches a wrong currency rather than the prompt preventing it (prompt text was left unchanged to keep the warm SAR cache valid).

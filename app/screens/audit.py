@@ -36,8 +36,9 @@ def render() -> None:
     if not has_gt and has_txn_labels:
         # Real labelled data (e.g. the IBM AML sample): per-transaction labels only.
         st.caption("This dataset labels individual transactions as laundering or not, "
-                   "so quality is measured per transaction. Per-pattern scores need "
-                   "the synthetic sample.")
+                   "so quality is measured per transaction. Ring-level scores need the "
+                   "synthetic sample; where the data names the laundering type, recall per "
+                   "type is shown below.")
         with friendly_errors("computing metrics"):
             alerts = da.load_alerts(dataset, version)
             txn = metrics.txn_level_metrics(dataset, alerts)
@@ -60,9 +61,22 @@ def render() -> None:
                    "full file. Recall is measured against the labelled laundering "
                    "transactions that were kept; laundering rows that were filtered out "
                    "(for example other currencies) are not counted as missed.")
+        with friendly_errors("computing recall by laundering type"):
+            by_type = metrics.recall_by_type(dataset, alerts)
+        if by_type:
+            st.markdown("**Recall by laundering type**")
+            st.dataframe(
+                pd.DataFrame([{"Type": r["typology"], "Laundering txns": r["laundering_txns"],
+                               "Flagged": r["flagged"], "Recall": r["recall"] * 100}
+                              for r in by_type]),
+                use_container_width=True, hide_index=True,
+                height=min(35 * (len(by_type) + 1) + 3, 520),
+                column_config={"Recall": st.column_config.ProgressColumn(
+                    "Recall", min_value=0, max_value=100, format="%.0f%%",
+                    help="Share of this type's laundering transactions that any alert covers.")})
     elif not has_gt:
-        st.info("Quality metrics need labelled data: use the synthetic or IBM AML sample "
-                "(uploaded CSVs carry no labels).")
+        st.info("Quality metrics need labelled data: use the synthetic, IBM AML or SAML-D "
+                "sample (uploaded CSVs carry no labels).")
     else:
         with friendly_errors("computing metrics"):
             alerts = da.load_alerts(dataset, version)

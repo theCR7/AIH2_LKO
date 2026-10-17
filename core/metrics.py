@@ -103,6 +103,31 @@ def txn_level_metrics(dataset_id: str, alerts: list[Alert]) -> PatternMetrics:
     )
 
 
+def recall_by_type(dataset_id: str, alerts: list[Alert]) -> list[dict]:
+    """Recall per laundering typology, for datasets labelled by type rather than by ring.
+
+    Uses ``gt_pattern`` on laundering transactions (SAML-D's ``Laundering_type``). Returns
+    one row per typology, largest first: ``typology``, ``laundering_txns``, ``flagged``,
+    ``recall``. Empty when the dataset carries no typology labels.
+    """
+    with session_scope() as session:
+        rows = (
+            session.query(Transaction.txn_id, Transaction.gt_pattern)
+            .filter(Transaction.dataset_id == dataset_id, Transaction.is_laundering == 1,
+                    Transaction.gt_pattern.isnot(None))
+            .all()
+        )
+    flagged = {t for a in alerts for t in a.txn_ids}
+    counts: dict[str, list[int]] = {}
+    for txn_id, typology in rows:
+        entry = counts.setdefault(typology, [0, 0])
+        entry[1] += 1
+        entry[0] += txn_id in flagged
+    out = [{"typology": k, "laundering_txns": v[1], "flagged": v[0],
+            "recall": round(v[0] / v[1], 3)} for k, v in counts.items()]
+    return sorted(out, key=lambda d: (-d["laundering_txns"], d["typology"]))
+
+
 def overall_ring_recall(dataset_id: str, alerts: list[Alert],
                         rules: Rules | None = None) -> float:
     """Fraction of all planted rings recalled (pattern-agnostic account overlap)."""

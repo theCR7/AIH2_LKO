@@ -24,6 +24,7 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from core.config import PROJECT_ROOT, load_settings
 from core.models import AuditLog, Base
+from core.utils import reset_currency_cache
 
 _engine: Engine | None = None
 _SessionLocal: sessionmaker[Session] | None = None
@@ -89,6 +90,7 @@ def reset_db() -> None:
     engine = get_engine()
     Base.metadata.drop_all(engine)
     Base.metadata.create_all(engine)
+    reset_currency_cache()
 
 
 def clear_data(keep_llm_cache: bool = True) -> None:
@@ -106,6 +108,7 @@ def clear_data(keep_llm_cache: bool = True) -> None:
             if table.name in keep:
                 continue
             session.execute(table.delete())
+    reset_currency_cache()  # the next dataset may use a different currency
 
 
 # --- Audit-log hash chain (BR4: tamper-evident) ------------------------------

@@ -2,7 +2,8 @@
 
 For every narrative sentence it checks, against the cited evidence only:
 1. ``evidence_ids`` is non-empty and every id exists in the pack.
-2. every amount (``48,200.00 USD``) matches an amount in the cited evidence (±1%).
+2. every amount (``48,200.00 USD``) matches an amount in the cited evidence (±1%) and is
+   stated in the same currency as that evidence.
 3. every account id (``ACC_0018``) is in the cited evidence or the subjects.
 4. every date (``2026-09-03``) falls inside the cited evidence dates/ranges.
 5. speculation lexicon: reject identity/intent claims the evidence cannot support.
@@ -19,7 +20,10 @@ import re
 from core.config import Rules, load_rules
 from core.schemas import EvidenceItem, EvidencePack, SARNarrative, ValidationIssue, ValidationResult
 
-_AMOUNT_RE = re.compile(r"(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)\s*USD")
+# ISO codes the app can print (the dataset's own currency, see core.utils.active_currency).
+_CURRENCY_CODES = ("USD", "GBP", "EUR", "CHF", "CNY", "INR", "AED", "TRY", "MXN", "MAD",
+                   "PKR", "NGN", "JPY", "CAD", "AUD", "ILS", "SAR")
+_AMOUNT_RE = re.compile(r"(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)\s*(" + "|".join(_CURRENCY_CODES) + r")\b")
 _DATE_RE = re.compile(r"\b(\d{4}-\d{2}-\d{2})\b")
 # 4+ digits: datasets with more than 9,999 accounts mint ids like ACC_10042; an
 # exact {4} match would silently skip account grounding for them.
@@ -32,14 +36,16 @@ def _parse_amount(text: str) -> float:
     return float(text.replace(",", ""))
 
 
-def _amounts_in(text: str) -> list[float]:
-    return [_parse_amount(m) for m in _AMOUNT_RE.findall(text)]
+def _amounts_in(text: str) -> list[tuple[float, str]]:
+    """Every ``<amount> <ISO code>`` in the text as ``(value, code)``."""
+    return [(_parse_amount(value), code) for value, code in _AMOUNT_RE.findall(text)]
 
 
 def _allowed_facts(cited: list[EvidenceItem], subjects_accounts: set[str],
-                   ) -> tuple[list[float], set[str], list[tuple[str, str]], set[str]]:
-    """Collect allowed amounts, dates, date-ranges and accounts from cited evidence."""
+                   ) -> tuple[list[float], set[str], list[tuple[str, str]], set[str], set[str]]:
+    """Collect allowed amounts, dates, date-ranges, accounts and currencies from evidence."""
     amounts: list[float] = []
+    currencies: set[str] = set()
     dates: set[str] = set()
     ranges: list[tuple[str, str]] = []
     accounts: set[str] = set(subjects_accounts)
@@ -49,7 +55,9 @@ def _allowed_facts(cited: list[EvidenceItem], subjects_accounts: set[str],
         for field in ("amount", "total_amount"):
             if isinstance(data.get(field), (int, float)):
                 amounts.append(float(data[field]))
-        amounts.extend(_amounts_in(it.summary))
+        for value, code in _amounts_in(it.summary):
+            amounts.append(value)
+            currencies.add(code)
         if isinstance(data.get("date"), str):
             dates.add(data["date"])
         if isinstance(data.get("date_range"), str):
@@ -64,7 +72,7 @@ def _allowed_facts(cited: list[EvidenceItem], subjects_accounts: set[str],
         if isinstance(data.get("accounts"), list):
             accounts.update(data["accounts"])
         accounts.update(_ACCT_RE.findall(it.summary))
-    return amounts, dates, ranges, accounts
+    return amounts, dates, ranges, accounts, currencies
 
 
 def _date_ok(date: str, dates: set[str], ranges: list[tuple[str, str]]) -> bool:
@@ -100,12 +108,15 @@ def validate_narrative(narrative: SARNarrative, pack: EvidencePack,
                 problems.append(f"unknown evidence ids: {', '.join(unknown)}")
 
             cited = [by_id[e] for e in sent.evidence_ids if e in by_id]
-            amounts, dates, ranges, accounts = _allowed_facts(cited, subject_accounts)
+            amounts, dates, ranges, accounts, currencies = _allowed_facts(cited, subject_accounts)
 
-            # Rule 2: amounts match cited evidence (±tol).
-            for amt in _amounts_in(sent.text):
+            # Rule 2: amounts match cited evidence (±tol), in the evidence's own currency.
+            for amt, code in _amounts_in(sent.text):
                 if not any(abs(amt - a) <= tol * max(a, 1.0) for a in amounts):
-                    problems.append(f"amount {amt:,.2f} USD not supported by cited evidence")
+                    problems.append(f"amount {amt:,.2f} {code} not supported by cited evidence")
+                elif currencies and code not in currencies:
+                    problems.append(f"currency {code} differs from the cited evidence "
+                                    f"({', '.join(sorted(currencies))})")
 
             # Rule 3: account ids exist in cited evidence or subjects.
             for acct in _ACCT_RE.findall(sent.text):

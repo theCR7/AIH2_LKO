@@ -9,6 +9,12 @@ ingest:
     context_share: 0.6           # share of the rest drawn from laundering accounts' neighbours
     seed: 42                     # deterministic sampling
     currency: US Dollar          # one currency only, so amounts are comparable (shown as USD)
+  saml:                          # SAML-D loader (core/ingest/saml_loader.py)
+    max_transactions: 40000      # total sampled rows; every kept laundering row is included first
+    context_share: 0.6           # share of the rest drawn from laundering accounts' neighbours
+    seed: 42                     # deterministic sampling
+    currency: UK pounds          # the file's name for the one currency we keep
+    currency_code: GBP           # amounts are then printed as, e.g., 48,200.00 GBP
 
 exclude_account_types: [merchant, payroll]   # legitimate fan-in / fan-out by design
 

@@ -23,9 +23,6 @@ Credentials: the Kaggle token is read from the ``KAGGLE_API_TOKEN`` environment 
 
 from __future__ import annotations
 
-import os
-import urllib.error
-import urllib.request
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -34,6 +31,7 @@ import pandas as pd
 
 from core.config import DATA_DIR, Rules, load_rules
 from core.db import clear_data, session_scope
+from core.ingest.kaggle import KaggleDownloadError, download_dataset_file
 from core.models import Account, Transaction
 from core.utils import utcnow
 
@@ -83,61 +81,14 @@ def download_hi_small(force: bool = False,
     client library or username/key pair is needed. Raises :class:`IbmLoaderError`
     with a calm, secret-free message on any failure.
     """
-    dest = local_path()
-    if dest.exists() and not force:
-        return dest
-
-    token = os.getenv("KAGGLE_API_TOKEN", "").strip()
-    if not token:
-        raise IbmLoaderError("No Kaggle token configured. Add KAGGLE_API_TOKEN to .env, "
-                             "or place HI-Small_Trans.csv in the data/ folder.")
-
-    url = f"https://www.kaggle.com/api/v1/datasets/download/{KAGGLE_SLUG}/{FILENAME}"
-    dest.parent.mkdir(parents=True, exist_ok=True)
-    partial = dest.with_suffix(".part")
-    if force:
-        partial.unlink(missing_ok=True)
-
-    last_error = "the connection stalled"
-    for _attempt in range(_DOWNLOAD_ATTEMPTS):
-        have = partial.stat().st_size if partial.exists() else 0
-        headers = {"Authorization": f"Bearer {token}"}
-        if have:
-            headers["Range"] = f"bytes={have}-"   # resume where the last attempt stopped
-        try:
-            with urllib.request.urlopen(urllib.request.Request(url, headers=headers),
-                                        timeout=_DOWNLOAD_TIMEOUT) as resp:
-                resumed = have > 0 and resp.status == 206
-                if not resumed:
-                    have = 0
-                expected = have + int(resp.headers.get("Content-Length") or 0)
-                with open(partial, "ab" if resumed else "wb") as out:
-                    total = have
-                    while chunk := resp.read(_DOWNLOAD_BLOCK):
-                        out.write(chunk)
-                        total += len(chunk)
-                        if on_progress:
-                            on_progress(total)
-            if expected and partial.stat().st_size != expected:
-                last_error = "the download ended early"
-                continue                        # truncated: resume from what we have
-            partial.replace(dest)
-            return dest
-        except urllib.error.HTTPError as exc:
-            if exc.code == 416 and have:        # range past EOF: the file is already complete
-                partial.replace(dest)
-                return dest
-            partial.unlink(missing_ok=True)
-            if exc.code in (401, 403):
-                raise IbmLoaderError("Kaggle rejected the token (HTTP "
-                                     f"{exc.code}). Check KAGGLE_API_TOKEN in .env.") from None
-            raise IbmLoaderError(
-                f"Kaggle returned HTTP {exc.code} for the dataset file.") from None
-        except (urllib.error.URLError, TimeoutError, OSError) as exc:
-            last_error = f"{type(exc).__name__}"   # keep the partial file and resume
-
-    raise IbmLoaderError(f"The Kaggle download did not finish ({last_error}). Your progress "
-                         "is kept: click Load IBM AML sample again to resume.")
+    try:
+        return download_dataset_file(
+            KAGGLE_SLUG, FILENAME, local_path(), on_progress=on_progress, force=force,
+            block=_DOWNLOAD_BLOCK, timeout=_DOWNLOAD_TIMEOUT, attempts=_DOWNLOAD_ATTEMPTS,
+            manual_hint="place HI-Small_Trans.csv in the data/ folder.",
+            retry_hint="click Load IBM sample again to resume.")
+    except KaggleDownloadError as exc:
+        raise IbmLoaderError(str(exc)) from None
 
 
 # --- Transform (pure; unit-tested offline) ------------------------------------

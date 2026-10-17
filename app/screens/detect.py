@@ -9,7 +9,7 @@ from app.components import data_access as da
 from app.components.theme import risk_band
 from app.components.ui import friendly_errors
 from core.config import load_rules
-from core.utils import fmt_amount
+from core.utils import active_currency, fmt_amount
 
 
 def _compact(value: float) -> str:
@@ -38,7 +38,7 @@ def render() -> None:
         ("Cases flagged", f"{kpis['n_cases']}",
          "Groups of accounts linked by at least one detected pattern, above the "
          "case-score threshold."),
-        ("Amount involved (USD)", _compact(kpis["suspicious_amount"]),
+        (f"Amount involved ({active_currency()})", _compact(kpis["suspicious_amount"]),
          "Total value across the transactions inside flagged cases. Exact: "
          f"{fmt_amount(kpis['suspicious_amount'])}."),
     ])
@@ -83,7 +83,8 @@ def render() -> None:
                 "the same accounts."),
             "accounts": st.column_config.NumberColumn("Accounts"),
             "total_amount": st.column_config.NumberColumn(
-                "Amount", format="%.2f", help="Total value in the case's transactions (USD)."),
+                "Amount", format="%.2f",
+                help=f"Total value in the case's transactions ({active_currency()})."),
             "score": st.column_config.ProgressColumn(
                 "Risk", min_value=0, max_value=100, format="%d",
                 help="0-100. Weighted pattern hits plus transaction centrality; "

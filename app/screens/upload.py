@@ -103,8 +103,48 @@ def _use_ibm() -> bool:
     return True
 
 
+def _use_saml() -> bool:
+    """Download (if needed), sample and detect the SAML-D data; True when it is loaded."""
+    from core.detection.runner import run_detection
+    from core.ingest import saml_loader as saml
+
+    with st.status("Loading SAML-D sample", expanded=True) as status:
+        try:
+            if saml.is_downloaded():
+                status.write("Using the copy already downloaded to data/saml/")
+                path = saml.local_path()
+            else:
+                status.write("Downloading SAML-D from Kaggle (about 200 MB)")
+                progress = st.empty()
+                path = saml.download_saml_d(
+                    on_progress=lambda n: progress.caption(f"{n / 1e6:,.0f} MB downloaded"))
+                progress.empty()
+            sample = saml.load_saml_subset(path=path, on_progress=status.write)
+        except saml.SamlLoaderError as exc:
+            c.add_log("SAML-D load failed", "Rule-based", str(exc))
+            status.update(label="Could not load the SAML-D sample", state="error")
+            st.error(str(exc))
+            return False
+        s = sample.stats
+        c.add_log("Loaded SAML-D", "Rule-based",
+                  f"{s['transactions']:,} transfers ({s['laundering_kept']:,} labelled laundering "
+                  f"of {s['laundering_total']:,} in the file), {s['accounts']:,} accounts")
+        status.write(f"Loaded {s['transactions']:,} transfers across {s['accounts']:,} "
+                     f"accounts; {s['laundering_kept']:,} are labelled laundering")
+        status.write("Running detectors and ranking cases")
+        st.session_state["rs_dataset"] = saml.DATASET_ID
+        summary = run_detection(saml.DATASET_ID)
+        c.add_log("Detection", "Rule-based",
+                  f"{summary.n_alerts} alerts -> {summary.n_cases} cases "
+                  f"in {summary.duration_ms} ms")
+        status.update(label=f"Ready: {summary.n_cases} cases flagged", state="complete")
+    da.bump_version()
+    return True
+
+
 def render() -> None:
     from core.ingest import ibm_loader as ibm
+    from core.ingest import saml_loader as saml
 
     st.subheader("Choose a data source")
     st.caption("All data is synthetic. Pick one to start; detection runs automatically "
@@ -113,7 +153,7 @@ def render() -> None:
     # One primary action per view: the sample button yields to "Load and run detection"
     # once a CSV has been uploaded.
     has_upload = st.session_state.get("rs_csv_upload") is not None
-    sample_col, ibm_col, csv_col = st.columns(3, gap="medium")
+    sample_col, ibm_col, saml_col = st.columns(3, gap="medium")
 
     with sample_col, st.container(border=True):
         st.markdown("<div class='rs-source-title'>Synthetic sample</div>",
@@ -142,10 +182,26 @@ def render() -> None:
             if loaded:
                 c.goto("detect")
 
-    with csv_col, st.container(border=True):
+    with saml_col, st.container(border=True):
+        st.markdown("<div class='rs-source-title'>SAML-D benchmark</div>",
+                    unsafe_allow_html=True)
+        st.caption("Labelled by laundering type (17 typologies), sampled to about 40,000 "
+                   "transfers in UK pounds. "
+                   + ("A local copy is ready." if saml.is_downloaded()
+                      else "The first load downloads about 200 MB."))
+        if st.button(f"{icon('cloud_download')} Load SAML-D sample",
+                     use_container_width=True):
+            loaded = False
+            with friendly_errors("loading the SAML-D sample"):
+                loaded = _use_saml()
+            if loaded:
+                c.goto("detect")
+
+    with st.container(border=True):
         st.markdown("<div class='rs-source-title'>Your own CSV</div>",
                     unsafe_allow_html=True)
-        st.caption("Upload transactions, then map your columns.")
+        st.caption("Upload transactions (up to 200 MB), then map your columns. Larger files "
+                   "such as the benchmarks above are sampled by the loaders instead.")
         uploaded = st.file_uploader("Transactions CSV", type=["csv"],
                                     label_visibility="collapsed", key="rs_csv_upload")
 

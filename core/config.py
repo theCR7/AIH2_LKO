@@ -110,8 +110,19 @@ class IbmIngestRules(BaseModel):
     currency: str = "US Dollar"     # keep one currency so amounts are comparable (labelled USD)
 
 
+class SamlIngestRules(BaseModel):
+    """Sampling knobs for the SAML-D loader (core/ingest/saml_loader.py)."""
+
+    max_transactions: int = 40000   # total sampled rows; all kept laundering rows come first
+    context_share: float = 0.6      # share of the rest drawn from laundering accounts' neighbours
+    seed: int = 42                  # deterministic sampling
+    currency: str = "UK pounds"     # the file's name for the one currency we keep
+    currency_code: str = "GBP"      # the ISO code every amount is then shown with
+
+
 class IngestRules(BaseModel):
     ibm: IbmIngestRules = Field(default_factory=IbmIngestRules)
+    saml: SamlIngestRules = Field(default_factory=SamlIngestRules)
 
 
 class Rules(BaseModel):

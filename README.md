@@ -78,7 +78,7 @@ and a decision log.
 
 ## How to run
 
-Load data (synthetic, your own CSV, or the real IBM AML benchmark) → detect fraud rings with explainable rules → rank cases → investigate on an interactive graph → draft a SAR where every sentence cites evidence and is validated against it → review, approve and export a PDF. Everything works offline with `LLM_MODE=mock`.
+Load data (synthetic, your own CSV, or the IBM AML / SAML-D benchmarks) → detect fraud rings with explainable rules → rank cases → investigate on an interactive graph → draft a SAR where every sentence cites evidence and is validated against it → review, approve and export a PDF. Everything works offline with `LLM_MODE=mock`.
 
 ### 1. Set up a virtual environment and install dependencies
 ```bash
@@ -103,7 +103,7 @@ streamlit run app/Home.py
 ```
 The app is one page with a step bar: **Upload → Detect → Investigate → Report**, plus **Metrics**.
 
-- **Upload** — *Use sample dataset* (seed 42: 500 accounts, ~5,000 transfers, planted laundering patterns), upload your own CSV with column mapping, or *Load IBM AML sample* (real labelled data, see below).
+- **Upload** — *Use sample dataset* (seed 42: 500 accounts, ~5,000 transfers, planted laundering patterns), upload your own CSV with column mapping (up to 200 MB), or *Load IBM sample* / *Load SAML-D sample* (labelled benchmark data, see below).
 - **Detect** — four headline numbers and the ranked case queue; select a row to investigate.
 - **Investigate** — interactive network graph (theme-aware, works offline), the rule-based *Why this was flagged* reason first, account risk, supporting transactions, then **Draft SAR** or **Dismiss with reason**.
 - **Report** — the drafted SAR with a citation chip on every statement, a coverage line, a completeness checklist, analyst sign-off, and PDF / text export. Unsupported statements are highlighted and block approval until acknowledged.
@@ -114,6 +114,10 @@ Light and dark follow `.streamlit/config.toml`.
 ### Real data: IBM AML (HI-Small) from Kaggle
 
 *Load IBM AML sample* downloads IBM's public AML benchmark (475 MB, resumable) and samples about 30,000 transactions by laundering label. Put `KAGGLE_API_TOKEN` in `.env` (or place `HI-Small_Trans.csv` in `data/`). Use it to show the pipeline on real labelled data at scale; quality is reported per transaction on Metrics and is modest by design (see `docs/TESTING.md` sections 6–7).
+
+### SAML-D (UK pounds, labelled by laundering type)
+
+*Load SAML-D sample* downloads the SAML-D dataset (about 200 MB zipped, 1 GB of CSV; Oztas et al., IEEE ICEBE 2023, CC BY-NC-SA 4.0, please cite) into `data/saml/` and keeps every UK-pound laundering row plus a seeded sample of normal traffic, about 40,000 transactions. The first load scans the file (about 30 s); the sample is then saved, so later loads are instant. Sampling sizes are in `config/rules.yaml` (`ingest.saml`). The loaders keep one currency, and every amount in the app is shown in the loaded dataset's own currency (GBP here, USD for the other sources). Metrics shows precision and recall plus **recall per laundering type**. With the shipped rules this is a hard dataset (see `docs/SAML_D_EXPERIMENT.md`).
 
 ### Before a live demo
 
