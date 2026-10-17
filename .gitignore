@@ -13,3 +13,5 @@ lib/
 !docs/**/*.html
 
 data/*.part
+data/saml/
+experiments/**/*.pkl

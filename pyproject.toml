@@ -1,5 +1,7 @@
 [tool.ruff]
 line-length = 100
+# One-off research scripts (see experiments/saml_d); not part of the application.
+extend-exclude = ["experiments"]
 target-version = "py311"
 
 [tool.ruff.lint]
