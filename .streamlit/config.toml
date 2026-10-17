@@ -1,0 +1,17 @@
+# RingSight theme. Light is the shipped default (analyst desktop). Both themes are
+# first-class: to ship dark, set base="dark" and swap the five colours below for the
+# DARK tokens in app/components/theme.py — the UI and the pyvis graph follow it.
+# Colours mirror app/components/theme.py (LIGHT tokens). Single source of colour.
+[theme]
+base = "light"
+primaryColor = "#2557D6"
+backgroundColor = "#FFFFFF"
+secondaryBackgroundColor = "#F7F8FA"
+textColor = "#101828"
+font = "sans serif"
+
+[server]
+headless = true
+
+[browser]
+gatherUsageStats = false

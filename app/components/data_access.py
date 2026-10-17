@@ -14,7 +14,7 @@ import streamlit as st
 
 from core.db import session_scope
 from core.detection.runner import load_bundle, run_all_detectors
-from core.models import AlertRow, CaseAccount, CaseRow, SarDraft, Transaction
+from core.models import Account, AlertRow, CaseAccount, CaseRow, SarDraft, Transaction
 from core.schemas import Alert
 
 
@@ -61,6 +61,7 @@ def load_kpis(dataset_id: str, version: int) -> dict:
     with session_scope() as session:
         n_txns = (session.query(Transaction)
                   .filter(Transaction.dataset_id == dataset_id).count())
+        n_accounts = session.query(Account).count()
         cases = session.query(CaseRow).filter(CaseRow.run_id == run_id).all()
         alerts = session.query(AlertRow).filter(AlertRow.run_id == run_id).all()
         case_ids = [c.case_id for c in cases]
@@ -85,6 +86,7 @@ def load_kpis(dataset_id: str, version: int) -> dict:
     suspicious = sum(c.total_amount for c in cases)
     return {
         "n_txns": n_txns,
+        "n_accounts": n_accounts,
         "n_cases": n_cases,
         "high_risk": high_risk_accts,
         "suspicious_amount": suspicious,
