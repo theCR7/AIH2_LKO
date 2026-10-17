@@ -41,12 +41,14 @@ class CycleRules(BaseModel):
 
 class FanInRules(BaseModel):
     min_senders: int = 5
+    max_senders: int = 100        # more payers than this looks like an institution
     max_amount_each: float = 10000
     window_hours: int = 48
 
 
 class FanOutRules(BaseModel):
     min_receivers: int = 5
+    max_receivers: int = 100      # more receivers than this looks like a mass payer
     min_total: float = 50000
     window_hours: int = 48
 
@@ -79,6 +81,8 @@ class ScoringRules(BaseModel):
 
 class CaseRules(BaseModel):
     min_case_score: float = 40
+    # Components with more accounts are split into one case per alert (see cases.py).
+    max_case_accounts: int = 50
 
 
 class MetricsRules(BaseModel):

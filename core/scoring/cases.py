@@ -77,9 +77,21 @@ def build_cases(alerts: list[Alert], account_risk: dict[str, AccountRisk],
         idx = account_to_comp[alert.accounts[0]]
         comp_alerts[idx].append(alert)
 
-    draft: list[tuple[float, list[str], list[str], list[Alert]]] = []
+    # A component larger than ``cases.max_case_accounts`` means transitive merging
+    # through hub accounts has swallowed unrelated activity (seen on real-scale data:
+    # one 3,553-account "case"). Split it into one case per alert, the smallest
+    # meaningful unit; small components are left as they are.
+    max_accounts = rules.cases.max_case_accounts
+    groups: list[tuple[list[str], list[Alert]]] = []
     for idx, comp in enumerate(components):
         members = comp_alerts[idx]
+        if len(comp) > max_accounts and len(members) > 1:
+            groups.extend((sorted(al.accounts), [al]) for al in members)
+        else:
+            groups.append((comp, members))
+
+    draft: list[tuple[float, list[str], list[str], list[Alert]]] = []
+    for comp, members in groups:
         score = max((account_risk[a].score for a in comp if a in account_risk), default=0.0)
         # Patterns ordered by weight contribution (most impactful first).
         pattern_order = sorted(

@@ -61,6 +61,8 @@ def detect_fan_in(bundle: GraphBundle, rules: Rules) -> list[RawAlert]:
         if best is None:
             continue
         window_edges, senders = best
+        if len(senders) > cfg.max_senders:
+            continue  # thousands of payers into one account is an institution, not structuring
         txn_ids = sorted(e["txn_id"] for e in window_edges)
         total = round(sum(e["amount"] for e in window_edges), 2)
         first = min(e["ts"] for e in window_edges)
@@ -89,6 +91,8 @@ def detect_fan_out(bundle: GraphBundle, rules: Rules) -> list[RawAlert]:
         if best is None:
             continue
         window_edges, receivers = best
+        if len(receivers) > cfg.max_receivers:
+            continue  # a mass payer (payroll-like) is not mule layering
         total = round(sum(e["amount"] for e in window_edges), 2)
         if total < cfg.min_total:
             continue

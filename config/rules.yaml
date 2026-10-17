@@ -22,11 +22,13 @@ cycles:
 
 fan_in:                          # smurfing / structuring
   min_senders: 5
+  max_senders: 100               # above this it is an institution (e.g. a payee hub), not structuring
   max_amount_each: 10000
   window_hours: 48
 
 fan_out:                         # layering / mule distribution
   min_receivers: 5
+  max_receivers: 100             # above this it is a mass payer (payroll-like), not mule layering
   min_total: 50000
   window_hours: 48
 
@@ -56,6 +58,7 @@ scoring:
 
 cases:
   min_case_score: 25             # cases below this are not listed by default
+  max_case_accounts: 50          # a linked group bigger than this is split into one case per alert
 
 metrics:
   ring_match_threshold: 0.6      # ring recalled if >= 60% of its accounts in one case
