@@ -136,6 +136,7 @@ Thresholds F3/F4 were chosen after seeing IBM output — principled (an institut
 **Demo-ready**
 - Golden path on seed-42 data: Upload → Detect (C-001/C-002 **High**) → Investigate → live or cached SAR at 100% grounding → sign-off → PDF/TXT → Metrics + verified audit chain. Recall 1.0, deterministic, ~1.3 s detection.
 - Offline mode (`LLM_MODE=mock`) and live Groq both verified; fallback chain verified.
+- **Demo cache is warm** for C-001 and C-002 on `gpt-oss-120b`: replay measured at **0.0 s, every agent call a cache hit, grounding 100%**. C-001's first live narrative failed validation and the repair loop needed two rounds to fix it — the guardrail catching a real model's mistakes, a good thing to show.
 - Real-data credibility: the same pipeline runs on 30,000 real labelled transactions in seconds and produces a fully grounded SAR.
 
 **Weak / risky — say these before a judge does**
