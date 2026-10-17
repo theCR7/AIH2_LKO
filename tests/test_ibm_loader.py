@@ -142,3 +142,68 @@ def test_validator_checks_five_digit_account_ids():
     assert validate_narrative(ok, pack).passed
     res = validate_narrative(bad, pack)
     assert not res.passed and "ACC_20002" in res.issues[0].problem
+
+
+class _FakeResp:
+    """Minimal urlopen() response: streams ``data`` then optionally stalls."""
+
+    def __init__(self, data: bytes, status: int, stall_after: int | None = None):
+        self._buf, self.status, self._stall = data, status, stall_after
+        self._sent = 0
+        self.headers = {"Content-Length": str(len(data))}
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        return False
+
+    def read(self, n: int) -> bytes:
+        if self._stall is not None and self._sent >= self._stall:
+            raise TimeoutError("read timed out")
+        chunk = self._buf[self._sent:self._sent + n]
+        self._sent += len(chunk)
+        return chunk
+
+
+def _prep_download(monkeypatch, tmp_path):
+    import urllib.request
+
+    monkeypatch.setattr(ibm, "DATA_DIR", tmp_path)
+    monkeypatch.setattr(ibm, "_DOWNLOAD_BLOCK", 100)
+    monkeypatch.setenv("KAGGLE_API_TOKEN", "test-token")
+    return urllib.request
+
+
+def test_download_resumes_after_a_stall(monkeypatch, tmp_path):
+    """A mid-stream stall keeps the partial file and the retry resumes via Range."""
+    payload = bytes(range(256)) * 10
+    calls: list[str | None] = []
+
+    def fake_urlopen(req, timeout=None):
+        rng = req.get_header("Range")
+        calls.append(rng)
+        if rng is None:
+            return _FakeResp(payload, 200, stall_after=1000)       # dies after 1,000 bytes
+        start = int(rng.split("=")[1].rstrip("-"))
+        return _FakeResp(payload[start:], 206)
+
+    monkeypatch.setattr(_prep_download(monkeypatch, tmp_path), "urlopen", fake_urlopen)
+    path = ibm.download_hi_small()
+    assert path.read_bytes() == payload
+    assert calls == [None, "bytes=1000-"]
+    assert not path.with_suffix(".part").exists()
+
+
+def test_download_gives_up_politely_and_keeps_progress(monkeypatch, tmp_path):
+    payload = bytes(range(256)) * 10
+
+    def always_stalls(req, timeout=None):
+        return _FakeResp(payload, 200, stall_after=300)
+
+    monkeypatch.setattr(_prep_download(monkeypatch, tmp_path), "urlopen", always_stalls)
+    monkeypatch.setattr(ibm, "_DOWNLOAD_ATTEMPTS", 2)
+    with pytest.raises(ibm.IbmLoaderError) as exc:
+        ibm.download_hi_small()
+    assert "resume" in str(exc.value) and "test-token" not in str(exc.value)
+    assert (tmp_path / "HI-Small_Trans.part").exists()

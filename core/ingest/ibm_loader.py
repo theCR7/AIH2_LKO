@@ -47,6 +47,8 @@ _COLUMNS = ["timestamp", "from_bank", "from_account", "to_bank", "to_account",
             "payment_format", "is_laundering"]
 _CHUNK_ROWS = 500_000
 _DOWNLOAD_BLOCK = 1 << 20
+_DOWNLOAD_TIMEOUT = 60      # seconds per socket read; a stall triggers a resume
+_DOWNLOAD_ATTEMPTS = 8      # resumable attempts before asking the analyst to retry
 
 
 class IbmLoaderError(Exception):
@@ -91,29 +93,51 @@ def download_hi_small(force: bool = False,
                              "or place HI-Small_Trans.csv in the data/ folder.")
 
     url = f"https://www.kaggle.com/api/v1/datasets/download/{KAGGLE_SLUG}/{FILENAME}"
-    request = urllib.request.Request(url, headers={"Authorization": f"Bearer {token}"})
     dest.parent.mkdir(parents=True, exist_ok=True)
     partial = dest.with_suffix(".part")
-    try:
-        with urllib.request.urlopen(request, timeout=60) as resp, open(partial, "wb") as out:
-            total = 0
-            while chunk := resp.read(_DOWNLOAD_BLOCK):
-                out.write(chunk)
-                total += len(chunk)
-                if on_progress:
-                    on_progress(total)
-        partial.replace(dest)
-    except urllib.error.HTTPError as exc:
+    if force:
         partial.unlink(missing_ok=True)
-        if exc.code in (401, 403):
-            raise IbmLoaderError("Kaggle rejected the token (HTTP "
-                                 f"{exc.code}). Check KAGGLE_API_TOKEN in .env.") from None
-        raise IbmLoaderError(f"Kaggle returned HTTP {exc.code} for the dataset file.") from None
-    except (urllib.error.URLError, TimeoutError, OSError) as exc:
-        partial.unlink(missing_ok=True)
-        raise IbmLoaderError("Could not reach Kaggle to download the dataset "
-                             f"({type(exc).__name__}). Check the connection and retry.") from None
-    return dest
+
+    last_error = "the connection stalled"
+    for _attempt in range(_DOWNLOAD_ATTEMPTS):
+        have = partial.stat().st_size if partial.exists() else 0
+        headers = {"Authorization": f"Bearer {token}"}
+        if have:
+            headers["Range"] = f"bytes={have}-"   # resume where the last attempt stopped
+        try:
+            with urllib.request.urlopen(urllib.request.Request(url, headers=headers),
+                                        timeout=_DOWNLOAD_TIMEOUT) as resp:
+                resumed = have > 0 and resp.status == 206
+                if not resumed:
+                    have = 0
+                expected = have + int(resp.headers.get("Content-Length") or 0)
+                with open(partial, "ab" if resumed else "wb") as out:
+                    total = have
+                    while chunk := resp.read(_DOWNLOAD_BLOCK):
+                        out.write(chunk)
+                        total += len(chunk)
+                        if on_progress:
+                            on_progress(total)
+            if expected and partial.stat().st_size != expected:
+                last_error = "the download ended early"
+                continue                        # truncated: resume from what we have
+            partial.replace(dest)
+            return dest
+        except urllib.error.HTTPError as exc:
+            if exc.code == 416 and have:        # range past EOF: the file is already complete
+                partial.replace(dest)
+                return dest
+            partial.unlink(missing_ok=True)
+            if exc.code in (401, 403):
+                raise IbmLoaderError("Kaggle rejected the token (HTTP "
+                                     f"{exc.code}). Check KAGGLE_API_TOKEN in .env.") from None
+            raise IbmLoaderError(
+                f"Kaggle returned HTTP {exc.code} for the dataset file.") from None
+        except (urllib.error.URLError, TimeoutError, OSError) as exc:
+            last_error = f"{type(exc).__name__}"   # keep the partial file and resume
+
+    raise IbmLoaderError(f"The Kaggle download did not finish ({last_error}). Your progress "
+                         "is kept: click Load IBM AML sample again to resume.")
 
 
 # --- Transform (pure; unit-tested offline) ------------------------------------
