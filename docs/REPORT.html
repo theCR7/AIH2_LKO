@@ -551,13 +551,36 @@ li{margin:4px 0}
     <tr><td>Synthetic — Fan-in structuring</td><td class="n">0.40</td><td class="n">1.00</td><td class="n">0.57</td></tr>
     <tr><td>Synthetic — Shared identifier</td><td class="n">0.50</td><td class="n">1.00</td><td class="n">0.67</td></tr>
     <tr><td>Synthetic — Rapid pass-through</td><td class="n">0.33</td><td class="n">1.00</td><td class="n">0.50</td></tr>
-    <tr><td><strong>IBM HI-Small</strong> (per transaction)</td><td class="n">0.544</td><td class="n">0.149</td><td class="n">0.233</td></tr>
+    <tr><td><strong>IBM HI-Small</strong> (per transaction, 30k sample)</td><td class="n">0.544</td><td class="n">0.149</td><td class="n">0.233</td></tr>
   </table></div>
-  <p style="font-size:13px"><strong>Reading these honestly:</strong> recall is 100% on
-  synthetic because the detectors are tuned to those typologies; precision is deliberately
-  below 1.0 (realistic false positives from look-alike activity). On real IBM data recall
-  is low because only 37% of its laundering is single-currency and the rules aren't trained
-  on it — so IBM is a <em>scale and explainability</em> proof, not an accuracy claim.</p>
+  <h3>Evidence behind the IBM row (RingSight, measured)</h3>
+  <div class="tbl"><table>
+    <tr><th>Count</th><th class="n">Value</th><th>Meaning</th></tr>
+    <tr><td>True positives</td><td class="n">284</td><td>laundering transactions the rules flagged</td></tr>
+    <tr><td>False positives</td><td class="n">238</td><td>legitimate transactions flagged (0.85% of the 28,088 normal rows)</td></tr>
+    <tr><td>Missed</td><td class="n">1,628</td><td>laundering transactions not flagged</td></tr>
+    <tr><td>Sample</td><td class="n">30,000</td><td>1,912 laundering (6.37%) and 28,088 normal</td></tr>
+  </table></div>
+
+  <p style="font-size:13px"><strong>These are RingSight's own results.</strong> They are not
+  a comparison with other companies' systems: no competitor figures were measured, so none
+  are claimed. Reading them honestly:</p>
+  <ul style="font-size:13px">
+    <li><strong>Precision is flattered by the sample.</strong> Laundering is 6.37% of our 30,000-row
+    sample but 0.102% of the full 5.08M-row file (63× over-represented), so precision on the full
+    data would be lower.</li>
+    <li><strong>Recall counts only the laundering we kept.</strong> 284 of 1,912 is 14.9%, but the
+    file holds 5,177 laundering rows; the other 3,265 were dropped by the single-currency
+    filter. Against all of them it is 5.5%.</li>
+    <li><strong>Why it is low.</strong> The filter breaks rings that cross currencies, IBM's data has
+    no device or IP fields, no loops were found, and our thresholds were tuned on the synthetic
+    typologies. Recall is 100% on the synthetic data for exactly that reason.</li>
+  </ul>
+  <p style="font-size:13px"><strong>How we improve it:</strong> normalise multiple currencies instead of
+  dropping them; add detectors for patterns beyond our five (IBM documents several, such as
+  gather-scatter and bipartite); calibrate thresholds on a held-out split; and train a risk
+  re-ranker from analyst verdicts (section 7). Until then IBM is a proof of scale and
+  explainability, not an accuracy claim.</p>
 
   <h3>Confidence signals — logged on every draft</h3>
   <p>RingSight does not show a made-up "confidence %". It records defined signals per draft

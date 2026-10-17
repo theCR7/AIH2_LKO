@@ -30,6 +30,7 @@ def render() -> None:
         with session_scope() as session:
             base = session.query(Transaction).filter(Transaction.dataset_id == dataset)
             has_gt = base.filter(Transaction.gt_ring_id.isnot(None)).count() > 0
+            n_txns = base.count()
             has_txn_labels = base.filter(Transaction.is_laundering.isnot(None)).count() > 0
 
     if not has_gt and has_txn_labels:
@@ -49,8 +50,16 @@ def render() -> None:
         m3.metric("F1", f"{txn.f1:.3f}",
                   help="Harmonic mean of precision and recall.")
         st.caption(f"{txn.tp:,} true positives · {txn.fp:,} false positives · "
-                   f"{txn.fn:,} missed. The rules are deterministic and explainable, "
-                   "not trained on this data.")
+                   f"{txn.fn:,} missed. These are this system's own results. The rules "
+                   "are deterministic and explainable, and are not trained on this data.")
+        positives = txn.tp + txn.fn
+        share = positives / n_txns if n_txns else 0.0
+        st.caption(f"Reading these numbers: laundering is {share:.1%} of this dataset's "
+                   "transactions because positives are over-represented when a large "
+                   "file is sampled, so precision here is higher than it would be on the "
+                   "full file. Recall is measured against the labelled laundering "
+                   "transactions that were kept; laundering rows that were filtered out "
+                   "(for example other currencies) are not counted as missed.")
     elif not has_gt:
         st.info("Quality metrics need labelled data: use the synthetic or IBM AML sample "
                 "(uploaded CSVs carry no labels).")
