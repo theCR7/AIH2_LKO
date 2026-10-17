@@ -17,12 +17,13 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 _TEST_DB = Path(tempfile.gettempdir()) / "ringsight_pytest.db"
 os.environ["DATABASE_URL"] = f"sqlite:///{_TEST_DB}"
+os.environ["LLM_MODE"] = "mock"  # tests run offline, deterministically
 
 import pytest
 
 from core.config import load_rules
 from core.db import reset_db
-from core.detection.runner import load_bundle, run_all_detectors
+from core.detection.runner import load_bundle, run_all_detectors, run_detection
 from core.ingest.generator import generate
 
 SEED = 42
@@ -37,14 +38,16 @@ def rules():
 
 @pytest.fixture(scope="session")
 def seeded(rules):
-    """Reset the DB, generate seed-42 data once, and return run artefacts."""
+    """Reset the DB, generate seed-42 data, run + persist detection once."""
     reset_db()
     result = generate(seed=SEED, persist=True, write_csv=True)
     bundle = load_bundle(DATASET)
     alerts = run_all_detectors(bundle, rules)
+    summary = run_detection(DATASET, rules)  # persists cases/alerts for SAR tests
     return {
         "dataset": DATASET,
         "result": result,
         "bundle": bundle,
         "alerts": alerts,
+        "summary": summary,
     }

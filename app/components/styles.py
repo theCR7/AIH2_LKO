@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import streamlit as st
 
-from core.config import load_settings
+from core.agents.llm import get_llm_status
 
 # Design tokens (WIREFRAMES "Design tokens" table).
 TOKENS = {
@@ -76,11 +76,16 @@ def risk_badge(score: float) -> str:
 
 
 def llm_status_label() -> str:
-    """Describe the LLM gateway state for the sidebar pill (Phase 0: mock)."""
-    settings = load_settings()
-    if settings.llm_mode == "mock":
-        return "Mock mode"
-    return "Phase 0 · LLM off"
+    """Describe the LLM gateway state for the sidebar pill."""
+    status = get_llm_status()
+    if status["mode"] == "mock":
+        return "Mock ✓"
+    keys = []
+    if status.get("primary_key"):
+        keys.append("Gemini ✓")
+    if status.get("fallback_key"):
+        keys.append("Groq ✓")
+    return " / ".join(keys) if keys else "Live (no key)"
 
 
 def render_sidebar(active: str = "") -> None:

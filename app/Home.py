@@ -60,21 +60,24 @@ if kpis["n_txns"] == 0:
 
 # --- KPI row (PRD F7.1) ------------------------------------------------------
 rules = load_rules()
-est_hours = kpis["n_cases"] * rules.sar.baseline_manual_minutes_per_case / 60.0
+baseline_min = rules.sar.baseline_manual_minutes_per_case
+# Hours saved = drafted cases x (baseline - ~1 min actual) / 60 (ITERATIONS P8).
+est_hours = kpis["n_drafted"] * max(baseline_min - 1, 0) / 60.0
+avg_grounding = ("n/a" if kpis["avg_grounding"] is None
+                 else f"{kpis['avg_grounding']:.0f}%")
 cards = [
     ("Txns analysed", f"{kpis['n_txns']:,}"),
     ("Open cases", f"{kpis['n_cases']}"),
     ("High-risk accounts", f"{kpis['high_risk']}"),
     ("Suspicious amount", fmt_amount(kpis["suspicious_amount"])),
-    ("Avg grounding", "— (Phase 1)"),
-    ("Est. hours saved*", f"{est_hours:.0f} h"),
+    ("Avg grounding", avg_grounding),
+    ("Est. hours saved*", f"{est_hours:.1f} h"),
 ]
 cols = st.columns(len(cards))
 for col, (label, value) in zip(cols, cards, strict=True):
     col.markdown(kpi_card(label, value), unsafe_allow_html=True)
-st.caption("*Assumption: "
-           f"{rules.sar.baseline_manual_minutes_per_case} min manual baseline per case "
-           "(state as an assumption in the demo).")
+st.caption(f"*Assumption: {baseline_min} min manual baseline per case; hours saved counts "
+           f"the {kpis['n_drafted']} case(s) with a drafted SAR (state as an assumption).")
 
 st.divider()
 

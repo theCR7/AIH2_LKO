@@ -33,11 +33,12 @@
 
 ---
 
-## How to run (Phase 0 — Foundation + Data + Detection)
+## How to run
 
-Phase 0 is a runnable skeleton: it generates synthetic data, stores it, runs
-every detector, scores risk, builds cases and shows them in Streamlit. **No LLM
-is used in this phase** (SAR drafting arrives in Phase 1).
+Phase 0 (foundation + data + detection) and Phase 1 (LLM agents + evidence-grounded
+SAR drafting) are both implemented. Generate synthetic data → detect fraud rings →
+rank cases → investigate on an interactive graph → draft a SAR where every sentence
+is validated against evidence → review, approve and export a PDF.
 
 ### 1. Set up a virtual environment and install dependencies
 ```bash
@@ -49,8 +50,12 @@ source .venv/bin/activate
 
 pip install -r requirements.txt
 ```
-Python 3.11 or 3.12 is recommended (3.14 also works). `.env` is optional in
-Phase 0 — defaults come from `.env.example` (SQLite at `data/ringsight.db`).
+Python 3.11 or 3.12 is recommended (3.14 also works).
+
+Copy `.env.example` to `.env`. For an **offline, deterministic demo** set
+`LLM_MODE=mock` (no API keys needed — the SAR agents produce grounded template
+output). For **live** drafting set `LLM_MODE=live` and add `GEMINI_API_KEY` /
+`GROQ_API_KEY`; the gateway falls back Gemini → Groq → mock and never crashes the app.
 
 ### 2. Run the app
 ```bash
@@ -60,8 +65,18 @@ On the **Home** page click **▶ Generate demo data & run detection** — one cl
 generates the seed-42 dataset, runs all detectors and builds cases. Then browse:
 - **Data** — generate (tunable size/planted counts) or upload a CSV with column mapping.
 - **Cases** — filterable, ranked case list; select a case → *Investigate →*.
-- **Investigate** — case summary, account-risk table and *why flagged* (graph + SAR: Phase 1).
-- **Audit & Metrics** — precision / recall / F1 per pattern vs planted ground truth.
+- **Investigate** — interactive pyvis graph, *why flagged*, evidence & timeline, and the
+  **SAR Draft** tab: click *Draft SAR* to run Evidence → Typology → Narrative → Validator.
+  Every sentence shows its evidence chips; failed sentences are highlighted (Grounding Score).
+  Edit + re-validate, Approve / Reject (audited), and **Download SAR PDF**. The sidebar
+  *Inject hallucination* toggle demonstrates the validator catching a false sentence.
+- **Audit & Metrics** — precision / recall / F1 per pattern vs planted ground truth, and the
+  tamper-evident audit log.
+
+### SAR drafting (CLI)
+```bash
+python -c "from core.agents.orchestrator import run_sar_pipeline; r=run_sar_pipeline('C-001'); print(r.draft_id, r.validation.grounding_score)"
+```
 
 ### 3. Command-line equivalents
 ```bash
@@ -73,12 +88,14 @@ python -m core.db --verify-audit    # verify the audit-log hash chain
 
 ### 4. Tests & lint
 ```bash
-pytest -q          # 13 tests: recall = 1.0 on seed 42, exclusions, determinism, < 10 s
+pytest -q          # detectors (recall 1.0, determinism, <10 s), validator grounding, LLM gateway, PDF
 ruff check .       # clean
 ```
 
 ### Project layout
-- **backend** — `core/` (config, db, models, schemas, ingest, detection, scoring, metrics)
-- **frontend** — `app/` (Home + pages + components; never imports from DB directly except via `core`)
+- **backend** — `core/` (config, db, models, schemas, ingest, detection, scoring, metrics,
+  `agents/` LLM pipeline, `reporting/` PDF)
+- **frontend** — `app/` (Home + pages + components; imports data only via `core`)
 - **database** — `core/db.py` + `core/models.py`, SQLite file in `data/` (portable to SQL Server/Postgres via `DATABASE_URL`)
 - **rules** — all thresholds/weights live in `config/rules.yaml` (single source of truth)
+- **prompts** — SAR agent prompts in `config/prompts/` (typology, narrative)

@@ -135,3 +135,14 @@ class ConfidenceSignals(BaseModel):
     llm_self_confidence: float | None = None
     fallback_used: bool = False
     data_quality_flags: list[str] = Field(default_factory=list)
+
+
+class TraceStep(BaseModel):
+    """One step in the SAR agent pipeline, shown in the Agent Trace panel (F5.6)."""
+
+    step: str  # "Evidence Builder", "Typology Agent", ...
+    model: str = "deterministic"
+    latency_ms: int = 0
+    cache_hit: bool = False
+    retries: int = 0
+    notes: str = ""

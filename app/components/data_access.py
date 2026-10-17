@@ -14,7 +14,7 @@ import streamlit as st
 
 from core.db import session_scope
 from core.detection.runner import load_bundle, run_all_detectors
-from core.models import AlertRow, CaseAccount, CaseRow, Transaction
+from core.models import AlertRow, CaseAccount, CaseRow, SarDraft, Transaction
 from core.schemas import Alert
 
 
@@ -65,12 +65,22 @@ def load_kpis(dataset_id: str, version: int) -> dict:
         alerts = session.query(AlertRow).filter(AlertRow.run_id == run_id).all()
         case_ids = [c.case_id for c in cases]
         high_risk_accts = 0
+        drafts = []
         if case_ids:
             high_risk_accts = (
                 session.query(CaseAccount)
                 .filter(CaseAccount.case_id.in_(case_ids), CaseAccount.risk_score >= 70)
                 .count()
             )
+            drafts = session.query(SarDraft).filter(SarDraft.case_id.in_(case_ids)).all()
+    # Latest draft per case for avg grounding.
+    latest: dict[str, SarDraft] = {}
+    for d in drafts:
+        if d.case_id not in latest or d.version > latest[d.case_id].version:
+            latest[d.case_id] = d
+    n_drafted = len(latest)
+    avg_grounding = (sum(d.grounding_score for d in latest.values()) / n_drafted
+                     if n_drafted else None)
     n_cases = len(cases)
     suspicious = sum(c.total_amount for c in cases)
     return {
@@ -79,6 +89,8 @@ def load_kpis(dataset_id: str, version: int) -> dict:
         "high_risk": high_risk_accts,
         "suspicious_amount": suspicious,
         "n_alerts": len(alerts),
+        "n_drafted": n_drafted,
+        "avg_grounding": avg_grounding,
     }
 
 

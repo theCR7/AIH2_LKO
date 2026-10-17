@@ -14,6 +14,8 @@ ignore = [
 "app/Home.py" = ["E402"]
 "app/pages/*.py" = ["E402"]
 "tests/conftest.py" = ["E402"]
+# pdf.py must call matplotlib.use("Agg") before importing pyplot.
+"core/reporting/pdf.py" = ["E402"]
 
 [tool.pytest.ini_options]
 addopts = "-q"
