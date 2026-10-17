@@ -74,8 +74,8 @@ def render() -> None:
                 long = df.melt(id_vars="Pattern", value_vars=["Precision", "Recall", "F1"],
                                var_name="metric", value_name="score")
                 fig = px.bar(long, x="Pattern", y="score", color="metric", barmode="group",
-                             color_discrete_sequence=[t["accent"], t["risk_low"],
-                                                      t["risk_medium"]])
+                             color_discrete_sequence=[t["series_1"], t["series_2"],
+                                                      t["series_3"]])
                 fig.update_layout(height=300, margin=dict(l=8, r=8, t=8, b=8),
                                   yaxis_range=[0, 1.05], xaxis_title="", yaxis_title="",
                                   paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",

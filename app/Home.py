@@ -17,7 +17,7 @@ import streamlit as st
 
 from app.components import components as c
 from app.components import data_access as da
-from app.components.theme import icon, inject
+from app.components.theme import brand_html, icon, inject
 from app.components.ui import friendly_errors
 from app.screens import audit, detect, investigate, report, upload
 from core.config import load_rules
@@ -47,6 +47,8 @@ if has_data and case_id:
 if has_draft:
     reachable.add("report")
 
+# A fresh page load resumes at the case queue when data is already loaded.
+st.session_state.setdefault("rs_step", "detect" if has_data else "upload")
 step = c.current_step()
 if step not in reachable:
     step = "detect" if has_data else "upload"
@@ -58,8 +60,7 @@ if step not in reachable:
 def _top_bar() -> None:
     rows = f"{kpis['n_txns']:,} rows" if has_data else "no data loaded"
     st.markdown(
-        f"<div class='rs-topbar'>"
-        f"<span class='rs-wordmark'>RingSight</span>"
+        f"<div class='rs-topbar'>{brand_html()}<span class='rs-spacer'></span>"
         f"<span class='rs-dataset rs-mono'>{dataset} · {rows}</span>"
         f"<span class='rs-pill rs-pill-muted'>Synthetic data</span>"
         f"</div>",
@@ -68,20 +69,28 @@ def _top_bar() -> None:
 
 
 def _step_nav() -> None:
-    cols = st.columns(len(c.STEPS) + 1)
-    for col, (key, label) in zip(cols, c.STEPS, strict=False):
-        with col:
-            is_current = key == step
-            disabled = key not in reachable or is_current
-            prefix = "● " if is_current else ""
-            if st.button(f"{prefix}{label}", key=f"nav_{key}", disabled=disabled,
-                         use_container_width=True):
-                c.goto(key)
-    with cols[-1]:
-        if st.button(f"{icon('monitoring')} Metrics", key="nav_audit",
-                     disabled=(step == "audit" or not has_data),
-                     use_container_width=True):
-            c.goto("audit")
+    """Tab-style stepper: completed steps get a check, the current step is the accent
+    tab, steps that are not reachable yet are greyed out (styled in theme.py)."""
+    order = [key for key, _ in c.STEPS]
+    current_index = order.index(step) if step in order else -1
+    with st.container(key="stepnav"):
+        cols = st.columns(len(c.STEPS) + 1)
+        for i, (col, (key, label)) in enumerate(zip(cols, c.STEPS, strict=False)):
+            with col:
+                is_current = key == step
+                done = i < current_index and key in reachable
+                if st.button(f"{icon('check')} {label}" if done else label,
+                             key=f"nav_{key}",
+                             type="primary" if is_current else "secondary",
+                             disabled=is_current or key not in reachable,
+                             use_container_width=True):
+                    c.goto(key)
+        with cols[-1]:
+            on_metrics = step == "audit"
+            if st.button(f"{icon('monitoring')} Metrics", key="nav_audit",
+                         type="primary" if on_metrics else "secondary",
+                         disabled=on_metrics or not has_data, use_container_width=True):
+                c.goto("audit")
 
 
 _top_bar()
@@ -91,10 +100,6 @@ _step_nav()
 # --- Sidebar -----------------------------------------------------------------
 
 with st.sidebar:
-    st.markdown("<span class='rs-wordmark'>RingSight</span>", unsafe_allow_html=True)
-    st.caption("AML fraud-ring investigation")
-    st.divider()
-
     st.markdown(f"**{icon('database')} Data source**")
     st.caption(f"Dataset: `{dataset}`")
     from core.agents.llm import get_llm_status

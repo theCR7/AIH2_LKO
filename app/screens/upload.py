@@ -104,36 +104,57 @@ def _use_ibm() -> bool:
 
 
 def render() -> None:
-    st.subheader("Upload transactions")
-    st.caption("Load a transactions CSV, or use the built-in synthetic sample.")
+    from core.ingest import ibm_loader as ibm
 
-    with st.container(border=True):
-        uploaded = st.file_uploader("Transactions CSV", type=["csv"],
-                                    label_visibility="collapsed")
-        st.caption("Expected columns:")
-        st.dataframe(
-            pd.DataFrame(_SCHEMA, columns=["column", "type", "example", "requirement"]),
-            use_container_width=True, hide_index=True)
+    st.subheader("Choose a data source")
+    st.caption("All data is synthetic. Pick one to start; detection runs automatically "
+               "and takes you to the case queue.")
 
-    if uploaded is None:
-        st.caption("No file? Use the synthetic sample: 500 accounts, ~5,000 transfers, "
-                   "with known laundering patterns planted for the demo.")
-        if st.button(f"{icon('dataset')} Use sample dataset", type="primary"):
+    # One primary action per view: the sample button yields to "Load and run detection"
+    # once a CSV has been uploaded.
+    has_upload = st.session_state.get("rs_csv_upload") is not None
+    sample_col, ibm_col, csv_col = st.columns(3, gap="medium")
+
+    with sample_col, st.container(border=True):
+        st.markdown("<div class='rs-source-title'>Synthetic sample</div>",
+                    unsafe_allow_html=True)
+        st.caption("500 accounts and about 5,000 transfers, with laundering patterns "
+                   "planted for the demo. Ready in seconds.")
+        if st.button(f"{icon('dataset')} Use sample",
+                     type="secondary" if has_upload else "primary",
+                     use_container_width=True):
             with friendly_errors("preparing the sample dataset"):
                 _use_sample()
             c.goto("detect")
 
-        from core.ingest import ibm_loader as ibm
-        st.caption("Or test on real labelled data: the public IBM AML benchmark (HI-Small) "
-                   "from Kaggle, sampled by laundering label to about 30,000 transfers. "
+    with ibm_col, st.container(border=True):
+        st.markdown("<div class='rs-source-title'>IBM AML benchmark</div>",
+                    unsafe_allow_html=True)
+        st.caption("Real labelled transactions from Kaggle (HI-Small), sampled by "
+                   "laundering label to about 30,000 transfers. "
                    + ("A local copy is ready." if ibm.is_downloaded()
-                      else "The first load downloads a 475 MB file."))
-        if st.button(f"{icon('cloud_download')} Load IBM AML sample"):
+                      else "The first load downloads 475 MB."))
+        if st.button(f"{icon('cloud_download')} Load IBM sample",
+                     use_container_width=True):
             loaded = False
             with friendly_errors("loading the IBM AML sample"):
                 loaded = _use_ibm()
             if loaded:
                 c.goto("detect")
+
+    with csv_col, st.container(border=True):
+        st.markdown("<div class='rs-source-title'>Your own CSV</div>",
+                    unsafe_allow_html=True)
+        st.caption("Upload transactions, then map your columns.")
+        uploaded = st.file_uploader("Transactions CSV", type=["csv"],
+                                    label_visibility="collapsed", key="rs_csv_upload")
+
+    with st.expander("Expected CSV columns"):
+        st.dataframe(
+            pd.DataFrame(_SCHEMA, columns=["column", "type", "example", "requirement"]),
+            use_container_width=True, hide_index=True)
+
+    if uploaded is None:
         return
 
     # --- Uploaded file: map columns, validate, load --------------------------

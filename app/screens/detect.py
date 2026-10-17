@@ -12,6 +12,15 @@ from core.config import load_rules
 from core.utils import fmt_amount
 
 
+def _compact(value: float) -> str:
+    """Short money for a KPI card so it never overflows: 75,103,797 -> 75.10M."""
+    if value >= 1e9:
+        return f"{value / 1e9:,.2f}B"
+    if value >= 1e6:
+        return f"{value / 1e6:,.2f}M"
+    return f"{value:,.0f}"
+
+
 def render() -> None:
     dataset = da.current_dataset()
     version = da.refresh_token(dataset)
@@ -29,8 +38,9 @@ def render() -> None:
         ("Cases flagged", f"{kpis['n_cases']}",
          "Groups of accounts linked by at least one detected pattern, above the "
          "case-score threshold."),
-        ("Amount involved", fmt_amount(kpis["suspicious_amount"]),
-         "Total value across the transactions inside flagged cases."),
+        ("Amount involved (USD)", _compact(kpis["suspicious_amount"]),
+         "Total value across the transactions inside flagged cases. Exact: "
+         f"{fmt_amount(kpis['suspicious_amount'])}."),
     ])
 
     st.caption("")
@@ -63,6 +73,8 @@ def render() -> None:
                f"{hidden_note}")
     event = st.dataframe(
         table, use_container_width=True, hide_index=True,
+        # Show every case without an inner scrollbar, up to a sensible cap.
+        height=min(35 * (len(table) + 1) + 3, 600),
         on_select="rerun", selection_mode="single-row",
         column_config={
             "case_id": st.column_config.TextColumn("Case"),

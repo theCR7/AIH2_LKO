@@ -50,9 +50,10 @@ def render() -> None:
     st.markdown(
         f"<span class='rs-pill rs-pill-muted'>"
         f"{'Approved' if approved else 'Draft, review required'}</span> &nbsp;"
-        f"<span class='rs-mono' style='color:var(--rs-muted)'>"
-        f"Typology: {result.typology.typology} · drafted in "
-        f"{result.elapsed_ms / 1000:.1f}s</span>", unsafe_allow_html=True)
+        f"<span style='color:var(--rs-muted)'>Typology: "
+        f"<strong style='color:var(--rs-text)'>{result.typology.typology}</strong>"
+        f" · drafted in <span class='rs-mono'>{result.elapsed_ms / 1000:.1f}s</span></span>",
+        unsafe_allow_html=True)
     st.caption("")
 
     # Coverage line.
