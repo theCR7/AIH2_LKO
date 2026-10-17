@@ -1,0 +1,20 @@
+streamlit>=1.38
+pandas>=2.2
+numpy>=1.26
+networkx>=3.3
+scipy>=1.13          # required by networkx pagerank/centrality
+pyvis>=0.3.2
+plotly>=5.22
+matplotlib>=3.8
+pydantic>=2.7
+sqlalchemy>=2.0
+litellm>=1.40
+python-dotenv>=1.0
+pyyaml>=6.0
+reportlab>=4.2
+faker>=25.0
+tenacity>=8.3
+pytest>=8.2
+ruff>=0.5
+# optional: SQL Server
+# pyodbc>=5.1

@@ -1,0 +1,71 @@
+# RingSight detection & scoring rules — single source of truth (CLAUDE.md hard rule 2)
+# Values mirror PRD F2/F3. Change here, never in code.
+version: 1
+currency: USD
+
+exclude_account_types: [merchant, payroll]   # legitimate fan-in / fan-out by design
+
+cycles:
+  min_length: 3
+  max_length: 6
+  max_window_hours: 168          # all hops within 7 days
+  min_value_retention: 0.80      # each hop keeps >= 80% of previous hop
+  min_amount: 1000               # pre-filter edges before enumeration (perf, see ARCHITECTURE 7a)
+  max_candidates: 50000          # stop enumeration and log a warning
+
+fan_in:                          # smurfing / structuring
+  min_senders: 5
+  max_amount_each: 10000
+  window_hours: 48
+
+fan_out:                         # layering / mule distribution
+  min_receivers: 5
+  min_total: 50000
+  window_hours: 48
+
+shared_identifiers:
+  min_accounts: 3
+  id_types: [ip, device]
+
+passthrough:
+  min_outflow_ratio: 0.90
+  window_hours: 24
+  min_inflow: 5000
+
+scoring:
+  weights:                       # points added per pattern hit (capped at 100 total)
+    cycle: 35
+    fan_in: 30
+    fan_out: 30
+    shared_identifier: 15
+    passthrough: 20
+  centrality:
+    pagerank_weight: 10          # normalised 0..1 * weight
+    betweenness_weight: 10
+  bands: {high: 70, medium: 40}  # >=70 high, 40-69 medium, <40 low
+
+cases:
+  min_case_score: 40             # cases below this are not listed by default
+
+metrics:
+  ring_match_threshold: 0.6      # ring recalled if >= 60% of its accounts in one case
+
+validator:
+  amount_tolerance: 0.01         # ±1%
+  use_llm_judge: false
+  speculation_lexicon:           # claims the evidence can never support
+    - shell company
+    - front company
+    - terrorist
+    - criminal
+    - drug
+    - sanctioned
+    - knowingly
+    - intended to
+    - deliberately
+    - money launderer
+
+sar:
+  max_evidence_items: 40
+  max_repair_rounds: 2           # mirrors LLM_MAX_RETRIES
+  baseline_manual_minutes_per_case: 240   # ASSUMPTION for demo; state it as such

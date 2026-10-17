@@ -1,0 +1,682 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>RingSight — clickable mockup</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --primary:#1E3A8A; --primary-ink:#ffffff; --accent:#0EA5E9;
+  --high:#DC2626; --med:#F59E0B; --low:#16A34A;
+  --bad-bg:#FEE2E2; --bad-ink:#B91C1C; --ok-bg:#DCFCE7; --ok-ink:#166534;
+  --surface:#F8FAFC; --panel:#FFFFFF; --side:#EEF2F7; --ink:#0F172A; --muted:#64748B;
+  --line:#E2E8F0; --chip:#E0F2FE; --chip-ink:#075985; --hover:#F1F5F9;
+  --shadow:0 1px 2px rgba(15,23,42,.06);
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --primary:#3B5BCC; --surface:#0B1220; --panel:#111A2E; --side:#0E1628; --ink:#E2E8F0; --muted:#94A3B8;
+    --line:#22304A; --chip:#0C3048; --chip-ink:#7DD3FC; --hover:#17223A; --bad-bg:#3B1219; --bad-ink:#FCA5A5;
+    --ok-bg:#0F2E1C; --ok-ink:#86EFAC; color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --primary:#3B5BCC; --surface:#0B1220; --panel:#111A2E; --side:#0E1628; --ink:#E2E8F0; --muted:#94A3B8;
+  --line:#22304A; --chip:#0C3048; --chip-ink:#7DD3FC; --hover:#17223A; --bad-bg:#3B1219; --bad-ink:#FCA5A5;
+  --ok-bg:#0F2E1C; --ok-ink:#86EFAC; color-scheme:dark;
+}
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*,*::before,*::after{box-sizing:inherit}
+html,body{height:100%;margin:0}
+body{font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--surface);color:var(--ink);font-size:15px;line-height:1.5}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.app{display:grid;grid-template-columns:260px 1fr;height:100%}
+/* sidebar */
+.sidebar{background:var(--side);border-right:1px solid var(--line);padding:20px 16px;display:flex;flex-direction:column;gap:18px;overflow-y:auto}
+.brand{display:flex;align-items:center;gap:10px}
+.brand svg{flex:none}
+.brand b{font-size:19px;letter-spacing:-.01em}
+.brand small{display:block;color:var(--muted);font-size:12px;line-height:1.3}
+.nav{display:flex;flex-direction:column;gap:2px}
+.nav button{all:unset;cursor:pointer;padding:8px 10px;border-radius:6px;font-weight:500;color:var(--ink)}
+.nav button:hover{background:var(--hover)}
+.nav button[aria-current="page"]{background:var(--panel);box-shadow:var(--shadow);color:var(--primary)}
+:root[data-theme="dark"] .nav button[aria-current="page"]{color:#A5B8F5}
+.sidegroup{border-top:1px solid var(--line);padding-top:14px;display:flex;flex-direction:column;gap:8px;font-size:13px}
+.sidegroup h4{margin:0;font-size:13px;color:var(--muted);font-weight:600}
+.pill{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:999px;font-size:12px;font-weight:600;background:var(--ok-bg);color:var(--ok-ink)}
+.pill.mock{background:#FEF3C7;color:#92400E}
+.pill i{width:7px;height:7px;border-radius:50%;background:currentColor;display:inline-block}
+.switch{display:flex;align-items:center;justify-content:space-between;gap:8px;cursor:pointer}
+.switch input{appearance:none;width:34px;height:20px;border-radius:999px;background:var(--line);position:relative;cursor:pointer;flex:none;transition:background .15s}
+.switch input::after{content:"";position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#fff;transition:left .15s}
+.switch input:checked{background:var(--high)}
+.switch input:checked::after{left:16px}
+/* main */
+main{overflow-y:auto;min-width:0}
+.topbar{position:sticky;top:0;z-index:5;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 28px;background:var(--surface);border-bottom:1px solid var(--line)}
+.topbar .crumbs{color:var(--muted);font-size:13px}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--panel)}
+.seg button{all:unset;cursor:pointer;padding:5px 12px;font-size:13px;font-weight:500}
+.seg button[aria-pressed="true"]{background:var(--primary);color:#fff}
+.btn.menu-btn{display:none}
+.view{padding:24px 28px 60px;max-width:1280px}
+h1{font-size:26px;line-height:1.25;margin:0 0 4px;letter-spacing:-.015em}
+h2{font-size:17px;margin:0 0 12px}
+.sub{color:var(--muted);margin:0 0 22px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px;box-shadow:var(--shadow)}
+.kpis{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:12px;margin-bottom:16px}
+.kpi .v{font-size:24px;font-weight:700;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.kpi .l{color:var(--muted);font-size:13px}
+.grid2{display:grid;grid-template-columns:2fr 3fr;gap:16px}
+.btn{all:unset;cursor:pointer;display:inline-flex;align-items:center;gap:8px;padding:9px 16px;border-radius:8px;font-weight:600;font-size:14px;border:1px solid var(--line);background:var(--panel);color:var(--ink)}
+.btn:hover{background:var(--hover)}
+.btn.primary{background:var(--primary);border-color:var(--primary);color:#fff}
+.btn.primary:hover{filter:brightness(1.1)}
+.btn.danger{color:var(--high);border-color:#FCA5A5}
+.btn.ok{background:var(--low);border-color:var(--low);color:#fff}
+.btn[disabled]{opacity:.45;cursor:not-allowed;pointer-events:none}
+.btn.big{padding:13px 22px;font-size:15px}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.spacer{flex:1}
+.tablewrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th{text-align:left;font-weight:600;color:var(--muted);font-size:12.5px;padding:8px 10px;border-bottom:1px solid var(--line);white-space:nowrap}
+td{padding:9px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+tr.click{cursor:pointer}
+tr.click:hover td{background:var(--hover)}
+.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.score{display:inline-flex;align-items:center;gap:6px;font-weight:700;font-variant-numeric:tabular-nums}
+.score i{width:10px;height:10px;border-radius:2px;display:inline-block}
+.status{font-size:12px;font-weight:600;padding:2px 8px;border-radius:999px;background:var(--hover);white-space:nowrap}
+.status.Approved{background:var(--ok-bg);color:var(--ok-ink)}
+.status.Rejected{background:var(--bad-bg);color:var(--bad-ink)}
+.status.InReview{background:#E0E7FF;color:#3730A3}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .status.InReview{background:#1E2A5A;color:#C7D2FE}}
+:root[data-theme="dark"] .status.InReview{background:#1E2A5A;color:#C7D2FE}
+.tag{font-size:12px;padding:1px 7px;border-radius:5px;border:1px solid var(--line);white-space:nowrap;margin-right:4px}
+.mono{white-space:nowrap;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:13px}
+.tabs{display:flex;gap:2px;border-bottom:1px solid var(--line);margin:18px 0 16px;overflow-x:auto}
+.tabs button{all:unset;cursor:pointer;padding:9px 14px;font-weight:500;color:var(--muted);border-bottom:2px solid transparent;white-space:nowrap}
+.tabs button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--primary)}
+.field{display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--muted)}
+.field input,.field select,textarea{border:1px solid var(--line);border-radius:7px;padding:7px 9px;background:var(--panel);color:var(--ink);min-width:0}
+.fields{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:12px}
+.note{font-size:13px;color:var(--muted)}
+.bar{height:10px;border-radius:5px;background:var(--line);overflow:hidden}
+.bar>span{display:block;height:100%;background:var(--primary);width:0;transition:width .5s ease}
+/* investigate */
+.inv-head{display:flex;align-items:flex-start;gap:16px;flex-wrap:wrap}
+.inv-grid{display:grid;grid-template-columns:3fr 2fr;gap:16px}
+.graphbox{position:relative;height:430px;padding:0;overflow:hidden}
+.graphbox svg{width:100%;height:100%;display:block;touch-action:none}
+.graphlegend{position:absolute;left:12px;bottom:10px;font-size:12px;color:var(--muted);display:flex;gap:12px;flex-wrap:wrap;background:var(--panel);padding:4px 8px;border-radius:6px}
+.graphlegend i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:4px;vertical-align:-1px}
+.node{cursor:grab}
+.node:active{cursor:grabbing}
+.why li{margin:0 0 8px;list-style:none;display:flex;gap:10px}
+.why ul{padding:0;margin:0}
+.why .pts{font-weight:700;color:var(--high);min-width:38px;font-variant-numeric:tabular-nums}
+.tooltip{position:fixed;pointer-events:none;background:var(--ink);color:var(--surface);font-size:12.5px;padding:7px 10px;border-radius:6px;max-width:300px;z-index:50;opacity:0;transition:opacity .1s;line-height:1.4}
+/* SAR */
+.sar-head{display:flex;gap:14px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
+.gscore{display:inline-flex;align-items:center;gap:8px;padding:6px 12px;border-radius:8px;font-weight:700;font-size:15px}
+.gscore.ok{background:var(--ok-bg);color:var(--ok-ink)}
+.gscore.bad{background:var(--bad-bg);color:var(--bad-ink)}
+.sec{margin:18px 0 6px;font-size:14px;font-weight:700;color:var(--primary)}
+:root[data-theme="dark"] .sec{color:#A5B8F5}
+.sent{padding:7px 10px;border-radius:7px;margin:2px 0;display:flex;gap:10px;align-items:flex-start}
+.sent .txt{flex:1;max-width:78ch}
+.sent.bad{background:var(--bad-bg)}
+.sent.bad .txt{color:var(--bad-ink)}
+.sent .mark{font-weight:700;width:16px;flex:none;text-align:center}
+.sent.ok .mark{color:var(--low)}
+.sent.bad .mark{color:var(--high)}
+.issues{font-size:12.5px;margin-top:3px}
+.chip{all:unset;cursor:pointer;display:inline-block;font-size:11.5px;font-weight:600;padding:0 6px;border-radius:4px;background:var(--chip);color:var(--chip-ink);margin-left:3px;line-height:18px;font-variant-numeric:tabular-nums}
+.chip:hover{outline:1px solid var(--accent)}
+tr.flash td{background:var(--chip) !important;transition:background .3s}
+.steps{list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:6px}
+.steps li{display:flex;gap:10px;align-items:center}
+.steps .dot{width:18px;height:18px;border-radius:50%;border:2px solid var(--line);flex:none}
+.steps li.run .dot{border-color:var(--accent);border-top-color:transparent;animation:spin .7s linear infinite}
+.steps li.done .dot{background:var(--low);border-color:var(--low)}
+.steps li.warn .dot{background:var(--med);border-color:var(--med)}
+@keyframes spin{to{transform:rotate(360deg)}}
+.edit-sent{display:grid;grid-template-columns:1fr 120px auto;gap:6px;margin:4px 0}
+.edit-sent textarea{min-height:44px;resize:vertical}
+/* chat */
+.chat{display:flex;flex-direction:column;gap:10px;max-width:760px}
+.msg{padding:9px 12px;border-radius:10px;max-width:85%}
+.msg.u{align-self:flex-end;background:var(--primary);color:#fff}
+.msg.a{align-self:flex-start;background:var(--hover)}
+.sugg{all:unset;cursor:pointer;font-size:13px;padding:4px 10px;border:1px solid var(--line);border-radius:999px;background:var(--panel)}
+/* modal */
+.modal{position:fixed;inset:0;background:rgba(15,23,42,.55);display:none;align-items:flex-start;justify-content:center;z-index:40;overflow-y:auto;padding:30px 12px}
+.modal.open{display:flex}
+.paper{--panel:#fff;--ink:#111827;--muted:#64748B;--line:#E5E7EB;background:#fff;color:#111827;width:min(760px,100%);padding:42px 48px;position:relative;border-radius:4px;font-size:13.5px;box-shadow:0 10px 40px rgba(0,0,0,.3);overflow:hidden}
+.paper h3{margin:18px 0 6px;font-size:14px;color:#1E3A8A}
+.paper .wm{position:absolute;top:38%;left:-10%;right:-10%;text-align:center;font-size:64px;font-weight:800;color:rgba(220,38,38,.12);transform:rotate(-24deg);pointer-events:none;white-space:nowrap}
+.paper table td,.paper table th{border-color:#E5E7EB;padding:5px 6px;font-size:12px;color:#111827}
+.paper sup{color:#0369A1;font-size:9.5px}
+.paper .box{border:1px solid #CBD5E1;border-radius:6px;padding:10px 14px;display:grid;grid-template-columns:1fr 1fr;gap:4px 18px;font-size:12.5px}
+.drop{border:2px dashed var(--line);border-radius:10px;padding:26px;text-align:center;color:var(--muted)}
+.empty{padding:40px;text-align:center;color:var(--muted)}
+/* wireframe mode */
+body.wire .app{filter:grayscale(1)}
+body.wire .card,body.wire .btn,body.wire .kpi,body.wire .sent,body.wire table,body.wire .graphbox{border-style:dashed !important;box-shadow:none !important}
+body.wire .btn.primary{background:var(--panel);color:var(--ink);border:2px solid var(--ink)}
+body.wire .kpi .v,body.wire h1{font-family:"Comic Sans MS","Chalkboard SE",ui-rounded,sans-serif}
+@media (max-width:1100px){.kpis{grid-template-columns:repeat(3,minmax(0,1fr))}.inv-grid,.grid2{grid-template-columns:minmax(0,1fr)}}
+.grid2>*,.inv-grid>*{min-width:0}
+@media (max-width:760px){
+  .app{grid-template-columns:1fr}
+  .sidebar{position:fixed;inset:0 auto 0 0;width:270px;z-index:30;transform:translateX(-100%);transition:transform .2s;padding-top:calc(20px + env(safe-area-inset-top,0px))}
+  .sidebar.open{transform:none;box-shadow:0 0 40px rgba(0,0,0,.3)}
+  .btn.menu-btn{display:inline-flex}
+  .topbar{padding:10px 16px;top:env(safe-area-inset-top,0px)}
+  .view{padding:18px 16px 50px}
+  .kpis{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .paper{padding:28px 20px}
+  .edit-sent{grid-template-columns:1fr}
+}
+@media (prefers-reduced-motion:reduce){*{animation:none !important;transition:none !important}}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar" id="sidebar">
+    <div class="brand">
+      <svg width="34" height="34" viewBox="0 0 34 34" aria-hidden="true"><circle cx="17" cy="17" r="15" fill="none" stroke="#1E3A8A" stroke-width="2.5"/><circle cx="17" cy="5" r="3.2" fill="#DC2626"/><circle cx="29" cy="17" r="3.2" fill="#DC2626"/><circle cx="17" cy="29" r="3.2" fill="#DC2626"/><circle cx="5" cy="17" r="3.2" fill="#DC2626"/><circle cx="17" cy="17" r="4" fill="#0EA5E9"/></svg>
+      <div><b>RingSight</b><small>Fraud-ring investigation &amp; SAR copilot</small></div>
+    </div>
+    <nav class="nav" id="nav" aria-label="Pages">
+      <button data-page="home">Home</button>
+      <button data-page="data">Data</button>
+      <button data-page="cases">Cases</button>
+      <button data-page="investigate">Investigate</button>
+      <button data-page="audit">Audit &amp; metrics</button>
+    </nav>
+    <div class="sidegroup">
+      <h4>LLM</h4>
+      <div><span class="pill" id="llmpill"><i></i>Gemini ✓ · Groq ✓</span></div>
+      <label class="switch">Mock mode (offline)<input type="checkbox" id="mockToggle"></label>
+    </div>
+    <div class="sidegroup">
+      <h4>Dataset</h4>
+      <div id="dsname">demo_seed42 · 5,000 txns</div>
+      <button class="btn" id="demoBtn">Run demo mode</button>
+    </div>
+    <div class="sidegroup">
+      <h4>Presenter tools</h4>
+      <label class="switch">Inject hallucination<input type="checkbox" id="injectToggle"></label>
+      <span class="note">Adds a false sentence before validation so judges can see it caught.</span>
+    </div>
+    <div class="sidegroup note">Mockup with illustrative data. Not seed-42 output.</div>
+  </aside>
+  <main id="main">
+    <div class="topbar">
+      <button class="btn menu-btn" id="menuBtn" aria-label="Open menu">☰</button>
+      <span class="crumbs" id="crumbs"></span>
+      <span class="spacer"></span>
+      <div class="seg" role="group" aria-label="Fidelity">
+        <button id="hifiBtn" aria-pressed="true">Hi-fi</button>
+        <button id="wireBtn" aria-pressed="false">Wireframe</button>
+      </div>
+    </div>
+    <div class="view" id="view"></div>
+  </main>
+</div>
+<div class="tooltip" id="tip"></div>
+<div class="modal" id="modal" role="dialog" aria-modal="true" aria-label="SAR PDF preview"></div>
+
+<script>
+/* ------------------------------------------------------------------ data */
+const BASE_MIN = 240;
+const CASES = [
+  {id:"C-001",title:"4-hop circular flow via ACC_0018",patterns:["Cycle","Pass-through"],accts:5,amount:234350,score:92,status:"New",typ:"Layering via circular transfers"},
+  {id:"C-007",title:"5-hop circular flow via ACC_0419",patterns:["Cycle"],accts:5,amount:212000,score:85,status:"New",typ:"Layering via circular transfers"},
+  {id:"C-002",title:"Structuring into ACC_0077",patterns:["Fan-in"],accts:9,amount:86400,score:81,status:"New",typ:"Structuring / smurfing"},
+  {id:"C-003",title:"3-hop circular flow via ACC_0254",patterns:["Cycle"],accts:3,amount:129800,score:78,status:"New",typ:"Layering via circular transfers"},
+  {id:"C-005",title:"Fan-out from ACC_0390 to 6 accounts",patterns:["Fan-out"],accts:7,amount:72500,score:74,status:"In Review",typ:"Mule fan-out"},
+  {id:"C-006",title:"Structuring into ACC_0162",patterns:["Fan-in"],accts:7,amount:58900,score:71,status:"New",typ:"Structuring / smurfing"},
+  {id:"C-004",title:"Device cluster DEV_021 across 4 accounts",patterns:["Shared ID"],accts:4,amount:41200,score:64,status:"New",typ:"Account takeover / shared device"}
+];
+const EV = [
+  {id:"E1",kind:"pattern",summary:"Directed cycle ACC_0018 → ACC_0033 → ACC_0141 → ACC_0207 → ACC_0018, 4 hops, 2026-09-03 to 2026-09-05 (AL-0003)",acc:["ACC_0018","ACC_0033","ACC_0141","ACC_0207"],amt:[],dates:["2026-09-03","2026-09-05"],tx:["T000412","T000419","T000437","T000455"]},
+  {id:"E2",kind:"txn",summary:"T000412: ACC_0018 → ACC_0033, 48,200.00 USD, 2026-09-03 10:14, wire",acc:["ACC_0018","ACC_0033"],amt:[48200],dates:["2026-09-03"],tx:["T000412"]},
+  {id:"E3",kind:"txn",summary:"T000419: ACC_0033 → ACC_0141, 46,750.00 USD, 2026-09-03 16:40, wire",acc:["ACC_0033","ACC_0141"],amt:[46750],dates:["2026-09-03"],tx:["T000419"]},
+  {id:"E4",kind:"txn",summary:"T000437: ACC_0141 → ACC_0207, 45,100.00 USD, 2026-09-04 09:05, wire",acc:["ACC_0141","ACC_0207"],amt:[45100],dates:["2026-09-04"],tx:["T000437"]},
+  {id:"E5",kind:"txn",summary:"T000455: ACC_0207 → ACC_0018, 44,300.00 USD, 2026-09-05 11:32, wire",acc:["ACC_0207","ACC_0018"],amt:[44300],dates:["2026-09-05"],tx:["T000455"]},
+  {id:"E6",kind:"identifier",summary:"Device DEV_009 used by ACC_0033, ACC_0141, ACC_0207 (AL-0007)",acc:["ACC_0033","ACC_0141","ACC_0207"],amt:[],dates:[],tx:[]},
+  {id:"E7",kind:"metric",summary:"Loop total 184,350.00 USD; end-to-end retention 91.9% (44,300.00 of 48,200.00)",acc:["ACC_0018"],amt:[184350,44300,48200],dates:[],tx:[]},
+  {id:"E8",kind:"txn",summary:"T000398: ACC_0311 → ACC_0018, 50,000.00 USD, 2026-09-02 15:20, ACH (AL-0005 pass-through)",acc:["ACC_0311","ACC_0018"],amt:[50000],dates:["2026-09-02"],tx:["T000398"]},
+  {id:"E9",kind:"metric",summary:"ACC_0018: highest PageRank in case; betweenness 0.67",acc:["ACC_0018"],amt:[],dates:[],tx:[]},
+  {id:"E10",kind:"identifier",summary:"IP 192.0.2.44 used by ACC_0018 and ACC_0207 (AL-0008)",acc:["ACC_0018","ACC_0207"],amt:[],dates:[],tx:[]}
+];
+const ACCTS = {
+  ACC_0018:{name:"Northgate Trading LLC",bank:"Bank A",country:"US",risk:92},
+  ACC_0207:{name:"Harbor Lane Imports",bank:"Bank C",country:"US",risk:73},
+  ACC_0033:{name:"M. Okafor",bank:"Bank B",country:"US",risk:56},
+  ACC_0141:{name:"Delta Crest Services",bank:"Bank B",country:"CA",risk:55},
+  ACC_0311:{name:"Ridgeview Holdings",bank:"Bank D",country:"US",risk:18}
+};
+const NARR0 = {
+ summary:[
+  ["Between 2026-09-03 and 2026-09-05, funds moved in a closed loop through four accounts, ACC_0018, ACC_0033, ACC_0141 and ACC_0207, and returned to ACC_0018.",["E1"]],
+  ["The four transfers in the loop totalled 184,350.00 USD, and 91.9% of the first transfer's value returned to the originating account.",["E7"]]],
+ subjects:[
+  ["ACC_0018 originated the loop and received 50,000.00 USD from ACC_0311 on 2026-09-02, the day before the loop began.",["E8","E1"]],
+  ["ACC_0033, ACC_0141 and ACC_0207 were accessed from the same device, DEV_009.",["E6"]],
+  ["ACC_0018 and ACC_0207 were accessed from the same IP address, 192.0.2.44.",["E10"]]],
+ activity:[
+  ["On 2026-09-03, ACC_0018 transferred 48,200.00 USD to ACC_0033 (T000412).",["E2"]],
+  ["On 2026-09-03, ACC_0033 transferred 46,750.00 USD to ACC_0141 (T000419).",["E3"]],
+  ["On 2026-09-04, ACC_0141 transferred 45,100.00 USD to ACC_0207 (T000437).",["E4"]],
+  ["On 2026-09-05, ACC_0207 returned 44,300.00 USD to ACC_0018 (T000455).",["E5"]]],
+ red_flags:[
+  ["Funds completed a four-hop circular path in under three days, with each hop retaining more than 96% of the previous hop's value.",["E1","E2","E3","E4","E5"]],
+  ["Three of the four loop accounts share device DEV_009.",["E6"]],
+  ["ACC_0018 forwarded 48,200.00 USD within 19 hours of receiving 50,000.00 USD.",["E8","E2"]]],
+ conclusion:[
+  ["The activity is consistent with layering via circular transfers and is referred for analyst review.",["E1","E7"]]]
+};
+const SEC_LABEL = {summary:"Summary",subjects:"Subjects",activity:"Activity",red_flags:"Red flags",conclusion:"Conclusion"};
+const LEXICON = ["shell company","front company","terrorist","criminal","drug","sanctioned","knowingly","intended to","deliberately","money launderer"];
+const FAKE = ["ACC_9999 transferred 1,000,000.00 USD to ACC_0018 on 2026-09-04.",["E3"]];
+const TRACE = [
+  ["Evidence Builder","deterministic","0.2 s","—","10 items, 5 subjects"],
+  ["Typology Agent","gemini-2.5-flash","3.1 s","miss","Layering via circular transfers · self-reported 0.91 · cites E1, E6, E7"],
+  ["Narrative Agent","gemini-2.5-flash","9.4 s","miss","13 sentences"],
+  ["Validator","deterministic","0.1 s","—","2 issues: activity[2] 46,570.00 USD not in E3; red_flags[2] speculation “shell company”"],
+  ["Narrative Agent (repair 1)","gemini-2.5-flash","7.8 s","miss","Rewrote 2 sentences, kept 11"],
+  ["Validator","deterministic","0.1 s","—","0 issues · grounding 100%"]
+];
+const METRICS = {
+  ring:[["Cycle",1,1],["Fan-in",.67,1],["Fan-out",1,1],["Shared ID",.5,1],["Pass-through",1,1]],
+  txn:[["Cycle",.94,1],["Fan-in",.81,.96],["Fan-out",.88,1],["Shared ID",.6,1],["Pass-through",.9,.9]]
+};
+/* ------------------------------------------------------------------ state */
+const S = {
+  page:"home", caseId:"C-001", tab:"evidence", wire:false, metricMode:"ring",
+  sar:"idle", narr:null, editing:false, rejectOpen:false, drafted:{"C-005":{g:100,min:0.7}},
+  approvedBy:null, chat:[], filters:{pattern:"All",min:0,status:"All",q:""},
+  gen:false, detect:"done", audit:[], nodes:null
+};
+/* ------------------------------------------------------------------ helpers */
+const $ = s => document.querySelector(s);
+const esc = s => String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const band = r => r>=70?"var(--high)":r>=40?"var(--med)":"var(--low)";
+const money = n => n.toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});
+const kfmt = n => n>=1e6?(n/1e6).toFixed(2)+"M":n>=1e3?(n/1e3).toFixed(1)+"K":String(n);
+const caseById = id => CASES.find(c=>c.id===id);
+function hash(str){let h1=0xdeadbeef,h2=0x41c6ce57;for(let i=0;i<str.length;i++){const ch=str.charCodeAt(i);h1=Math.imul(h1^ch,2654435761);h2=Math.imul(h2^ch,1597334677);}h1=Math.imul(h1^(h1>>>16),2246822507)^Math.imul(h2^(h2>>>13),3266489909);h2=Math.imul(h2^(h2>>>16),2246822507)^Math.imul(h1^(h1>>>13),3266489909);return((h2>>>0).toString(16).padStart(8,"0")+(h1>>>0).toString(16).padStart(8,"0"));}
+function audit(action,caseId,before,after){
+  const prev = S.audit.length?S.audit[S.audit.length-1].hash:"0000000000000000";
+  const ts = new Date(Date.UTC(2026,9,16,9,0,0)+S.audit.length*137000).toISOString().replace("T"," ").slice(0,19);
+  const row={ts,actor:action==="detection_run"?"system":"Demo Analyst",action,caseId:caseId||"—",before,after,prev};
+  row.hash=hash(prev+JSON.stringify(row)); S.audit.push(row);
+}
+audit("detection_run",null,null,{run:"RUN-001",cases:7,duration_s:3.4});
+audit("draft_created","C-005",null,{draft:"D-005-v1",grounding:100});
+audit("status_changed","C-005",{status:"New"},{status:"In Review"});
+
+let tipEl=$("#tip");
+function tip(e,html){ if(!html){tipEl.style.opacity=0;return;} tipEl.innerHTML=html; tipEl.style.opacity=1;
+  const x=Math.min(e.clientX+14,innerWidth-310), y=e.clientY+14; tipEl.style.left=x+"px"; tipEl.style.top=y+"px"; }
+
+/* ------------------------------------------------------------------ validator (mirrors ARCHITECTURE §6) */
+function validateSentence(text,ids){
+  const issues=[]; const ev=ids.map(i=>EV.find(e=>e.id===i));
+  if(!ids.length) issues.push("no evidence_ids");
+  ids.forEach((i,k)=>{ if(!ev[k]) issues.push(`unknown evidence id ${i}`); });
+  const cited=ev.filter(Boolean);
+  const accs=new Set(cited.flatMap(e=>e.acc)), amts=cited.flatMap(e=>e.amt), dates=cited.flatMap(e=>e.dates).sort(), txs=new Set(cited.flatMap(e=>e.tx));
+  (text.match(/ACC_\d{4}/g)||[]).forEach(a=>{ if(!accs.has(a)) issues.push(`${a} not in cited evidence`); });
+  (text.match(/T\d{6}/g)||[]).forEach(t=>{ if(!txs.has(t)) issues.push(`${t} not in cited evidence`); });
+  (text.match(/\d{1,3}(?:,\d{3})*\.\d{2} USD/g)||[]).forEach(m=>{ const v=parseFloat(m.replace(/,|USD/g,""));
+    if(!amts.some(a=>Math.abs(a-v)<=a*0.01)) issues.push(`${m} does not match cited evidence (±1%)`); });
+  (text.match(/\d{4}-\d{2}-\d{2}/g)||[]).forEach(d=>{ if(!dates.length||d<dates[0]||d>dates[dates.length-1]) issues.push(`date ${d} outside cited evidence dates`); });
+  const low=text.toLowerCase(); LEXICON.forEach(w=>{ if(low.includes(w)) issues.push(`speculation: “${w}”`); });
+  return issues;
+}
+function validateAll(){
+  let n=0,ok=0;
+  for(const k in S.narr){ S.narr[k].forEach(s=>{ s.issues=validateSentence(s.text,s.ids); n++; if(!s.issues.length) ok++; }); }
+  return n?Math.round(ok/n*1000)/10:0;
+}
+function freshNarr(){
+  const o={}; for(const k in NARR0) o[k]=NARR0[k].map(([text,ids])=>({text,ids:[...ids]}));
+  if(S.inject) o.activity.splice(2,0,{text:FAKE[0],ids:[...FAKE[1]],fake:true});
+  return o;
+}
+
+/* ------------------------------------------------------------------ router */
+function go(page,opts={}){ Object.assign(S,opts); S.page=page; render(); $("#main").scrollTop=0; $("#sidebar").classList.remove("open"); }
+document.querySelectorAll("#nav button").forEach(b=>b.onclick=()=>go(b.dataset.page));
+function render(){
+  document.querySelectorAll("#nav button").forEach(b=>{ if(b.dataset.page===S.page) b.setAttribute("aria-current","page"); else b.removeAttribute("aria-current"); });
+  const map={home:["Home",Home],data:["Data",Data],cases:["Cases",Cases],investigate:["Investigate",Investigate],audit:["Audit & metrics",Audit]};
+  $("#crumbs").textContent="RingSight / "+map[S.page][0];
+  $("#view").innerHTML=map[S.page][1]();
+  (after[S.page]||(()=>{}))();
+}
+const after={};
+
+/* ------------------------------------------------------------------ Home */
+function Home(){
+  const d=Object.values(S.drafted), avgG=d.length?(d.reduce((a,b)=>a+b.g,0)/d.length).toFixed(0)+"%":"—";
+  const saved=d.reduce((a,b)=>a+(BASE_MIN-b.min)/60,0).toFixed(1)+" h";
+  const total=CASES.reduce((a,c)=>a+c.amount,0);
+  const kp=[["5,000","Transactions analysed"],[String(CASES.length),"Open cases"],["9","High-risk accounts"],[kfmt(total),"Suspicious amount (USD)"],[avgG,"Avg grounding score"],[saved,"Est. analyst hours saved"]];
+  const byPat=[["Cycle",3],["Fan-in",2],["Fan-out",1],["Shared ID",1],["Pass-through",1]];
+  return `<h1>Investigation dashboard</h1><p class="sub">Dataset demo_seed42 · last detection run 3.4 s · ${CASES.length} cases above score 40</p>
+  <div class="kpis">${kp.map(([v,l])=>`<div class="card kpi"><div class="v">${v}</div><div class="l">${l}</div></div>`).join("")}</div>
+  <div class="grid2">
+    <div class="card"><h2>Alerts by pattern</h2>${byPat.map(([p,n])=>`<div style="margin:10px 0"><div class="row" style="justify-content:space-between;font-size:13.5px"><span>${p}</span><b>${n}</b></div><div class="bar"><span style="width:${n/3*100}%"></span></div></div>`).join("")}
+      <p class="note" style="margin-top:14px">Hours saved = drafts × (${BASE_MIN} min assumed manual baseline − actual) ÷ 60.</p></div>
+    <div class="card"><div class="row"><h2 style="margin:0">Top 5 cases</h2><span class="spacer"></span><button class="btn" onclick="go('cases')">All cases</button></div>
+      <div class="tablewrap" style="margin-top:10px">${caseTable(CASES.slice(0,5),false)}</div></div>
+  </div>
+  <div class="card row" style="margin-top:16px"><button class="btn primary big" onclick="runDemo()">▶ Generate demo data &amp; run detection</button><span class="note">Resets the database, generates seed 42, runs all five detectors and pre-warms the SAR cache for the top two cases.</span></div>`;
+}
+function caseTable(list,full){
+  if(!list.length) return `<div class="empty">No cases match these filters. Lower the minimum score or clear the search.</div>`;
+  return `<table><thead><tr><th>Case</th><th>Title</th><th>Pattern(s)</th>${full?'<th class="num">Accts</th><th class="num">Amount (USD)</th>':""}<th class="num">Score</th><th>Status</th>${full?"<th></th>":""}</tr></thead><tbody>
+  ${list.map(c=>`<tr class="click" onclick="go('investigate',{caseId:'${c.id}',tab:'evidence'})"><td class="mono">${c.id}</td><td>${esc(c.title)}</td><td>${c.patterns.map(p=>`<span class="tag">${p}</span>`).join("")}</td>
+  ${full?`<td class="num">${c.accts}</td><td class="num">${kfmt(c.amount)}</td>`:""}<td class="num"><span class="score">${c.score}<i style="background:${band(c.score)}"></i></span></td><td><span class="status ${c.status.replace(' ','')}">${c.status}</span></td>${full?`<td><button class="btn" onclick="event.stopPropagation();go('investigate',{caseId:'${c.id}',tab:'evidence'})">Investigate</button></td>`:""}</tr>`).join("")}</tbody></table>`;
+}
+function runDemo(){
+  S.sar="idle"; S.narr=null; S.approvedBy=null; S.chat=[]; S.nodes=null;
+  CASES.forEach(c=>c.status=c.id==="C-005"?"In Review":"New");
+  audit("demo_reset",null,null,{seed:42,cases:7,cache_prewarmed:["C-001","C-007"]});
+  toast("Demo mode ready: seed 42 generated, 7 cases, cache warm for C-001 and C-007.");
+  go("home");
+}
+
+/* ------------------------------------------------------------------ Data */
+S.dtab="gen";
+function Data(){
+  const tabs=[["gen","Generate synthetic"],["upload","Upload CSV"],["ibm","IBM AML sample"]];
+  let body="";
+  if(S.dtab==="gen") body=`<div class="card"><div class="fields">
+    ${[["Accounts",500],["Transactions",5000],["Days",30],["Seed",42]].map(([l,v])=>`<label class="field">${l}<input type="number" value="${v}"></label>`).join("")}</div>
+    <h2 style="margin-top:18px">Planted patterns (ground truth)</h2><div class="fields">
+    ${[["Cycles",3],["Fan-in smurfing",2],["Fan-out",1],["Shared ID",1],["Pass-through",1],["Unlabelled decoys",3]].map(([l,v])=>`<label class="field">${l}<input type="number" value="${v}"></label>`).join("")}</div>
+    <p class="note">Background noise includes payroll (fan-out) and merchant (fan-in) accounts, excluded by <span class="mono">exclude_account_types</span> in rules.yaml.</p>
+    <button class="btn primary" onclick="S.gen=true;S.detect='idle';render();toast('Generated 500 accounts and 5,000 transactions.')">Generate</button></div>`;
+  if(S.dtab==="upload") body=`<div class="card"><label class="drop" style="display:block;cursor:pointer">Drop a CSV here or click to choose<input type="file" accept=".csv" id="csvIn" hidden></label>
+    <div id="mapping" style="margin-top:14px"><p class="note">After upload you map your columns to sender, receiver, amount, timestamp, currency, channel and optional IP/device.</p></div></div>`;
+  if(S.dtab==="ibm") body=`<div class="card"><p>Stretch goal P10b. Loads a labelled subset of IBM's synthetic <i>Transactions for AML</i> (HI-Small) with a preset column mapping.</p>
+    <div class="fields"><label class="field">Rows<input type="number" value="50000"></label><label class="field">Sampling<select><option>Stratified by is_laundering</option><option>First N rows</option></select></label></div>
+    <p class="note">Stratified sampling is recommended: the first N rows may contain very few laundering transactions.</p><button class="btn" disabled>Load subset</button></div>`;
+  const preview = S.gen||S.dtab!=="gen" ? `<div class="card" style="margin-top:16px"><h2>Preview (first rows)</h2><div class="tablewrap"><table><thead><tr><th>txn_id</th><th>sender</th><th>receiver</th><th class="num">amount</th><th>currency</th><th>ts</th><th>channel</th><th>device</th></tr></thead><tbody>
+    ${[["T000001","ACC_0402","ACC_0011",2350,"2026-08-20 09:02","ACH","DEV_118"],["T000002","ACC_0002","ACC_0255",4100,"2026-08-20 09:15","ACH","DEV_204"],["T000003","ACC_0137","ACC_0388",86.4,"2026-08-20 10:41","card","DEV_031"],["T000004","ACC_0219","ACC_0047",650,"2026-08-20 11:03","P2P","DEV_077"],["T000005","ACC_0311","ACC_0018",50000,"2026-09-02 15:20","ACH","DEV_301"]].map(r=>`<tr><td class="mono">${r[0]}</td><td class="mono">${r[1]}</td><td class="mono">${r[2]}</td><td class="num">${money(r[3])}</td><td>USD</td><td class="mono">${r[4]}</td><td>${r[5]}</td><td class="mono">${r[6]}</td></tr>`).join("")}</tbody></table></div></div>`:"";
+  const det = [["Cycles",3],["Fan-in smurfing",2],["Fan-out",1],["Shared identifiers",1],["Pass-through",1]];
+  return `<h1>Data</h1><p class="sub">Generate a seeded synthetic dataset or upload your own CSV, then run detection.</p>
+  <div class="tabs" role="tablist">${tabs.map(([k,l])=>`<button role="tab" aria-selected="${S.dtab===k}" onclick="S.dtab='${k}';render()">${l}</button>`).join("")}</div>
+  ${body}${preview}
+  <div class="card" style="margin-top:16px"><div class="row"><h2 style="margin:0">Detection</h2><span class="spacer"></span><button class="btn primary" id="detBtn">Run detection</button></div>
+  <div id="detList" style="margin-top:12px">${det.map(([n,c],i)=>`<div style="margin:9px 0"><div class="row" style="justify-content:space-between;font-size:13.5px"><span>${n}</span><span class="note" id="dl${i}">${S.detect==="done"?c+" alert"+(c>1?"s":""):"waiting"}</span></div><div class="bar"><span id="db${i}" style="width:${S.detect==="done"?100:0}%"></span></div></div>`).join("")}</div>
+  <p id="detMsg" class="note">${S.detect==="done"?`8 alerts merged into <b>7 cases</b> in 3.4 s. <a href="#" onclick="go('cases');return false">Review cases</a>`:""}</p></div>`;
+}
+after.data=()=>{
+  $("#detBtn").onclick=()=>{ const counts=[3,2,1,1,1]; S.detect="run"; $("#detMsg").textContent="Running detectors…";
+    counts.forEach((c,i)=>{ $("#db"+i).style.width="0%"; $("#dl"+i).textContent="waiting";
+      setTimeout(()=>{ $("#db"+i).style.width="100%"; $("#dl"+i).textContent=c+" alert"+(c>1?"s":""); if(i===4){ S.detect="done"; audit("detection_run",null,null,{run:"RUN-00"+(S.audit.filter(a=>a.action==="detection_run").length+1),cases:7,duration_s:3.4}); $("#detMsg").innerHTML=`8 alerts merged into <b>7 cases</b> in 3.4 s. <a href="#" onclick="go('cases');return false">Review cases</a>`; } },450*(i+1)); }); };
+  const f=$("#csvIn"); if(f) f.onchange=e=>{ const file=e.target.files[0]; if(!file) return; const r=new FileReader();
+    r.onload=()=>{ const head=(r.result.split(/\r?\n/)[0]||"").split(",").map(s=>s.trim()).filter(Boolean);
+      const want=["sender","receiver","amount","timestamp","currency","channel","ip (optional)","device (optional)"];
+      const guess=w=>head.find(h=>h.toLowerCase().includes(w.split(" ")[0].slice(0,4)))||"";
+      $("#mapping").innerHTML=`<h2>Column mapping for ${esc(file.name)}</h2><div class="fields">${want.map(w=>`<label class="field">${w}<select data-w="${w}"><option value="">—</option>${head.map(h=>`<option ${guess(w)===h?"selected":""}>${esc(h)}</option>`).join("")}</select></label>`).join("")}</div><div id="valres" style="margin-top:10px"></div>`;
+      const check=()=>{ const miss=[...document.querySelectorAll("#mapping select")].filter(s=>!s.dataset.w.includes("optional")&&!s.value).map(s=>s.dataset.w);
+        $("#valres").innerHTML= miss.length?`<span style="color:var(--high)">✗ Map required columns: ${miss.join(", ")}</span>`:`<span style="color:var(--low)">✓ All required columns mapped. Amounts and dates are validated on import.</span>`; };
+      document.querySelectorAll("#mapping select").forEach(s=>s.onchange=check); check(); };
+    r.readAsText(file.slice(0,4096)); };
+};
+
+/* ------------------------------------------------------------------ Cases */
+function Cases(){
+  const f=S.filters;
+  const list=CASES.filter(c=>(f.pattern==="All"||c.patterns.includes(f.pattern))&&c.score>=f.min&&(f.status==="All"||c.status===f.status)&&(c.id+" "+c.title).toLowerCase().includes(f.q.toLowerCase()));
+  return `<h1>Cases</h1><p class="sub">Alerts merged by connected component on the alert graph. Case score = highest member account score.</p>
+  <div class="card row" style="margin-bottom:14px;align-items:flex-end">
+    <label class="field">Pattern<select id="fPat">${["All","Cycle","Fan-in","Fan-out","Shared ID","Pass-through"].map(p=>`<option ${f.pattern===p?"selected":""}>${p}</option>`).join("")}</select></label>
+    <label class="field">Minimum score: <b id="minV">${f.min}</b><input type="range" min="0" max="100" value="${f.min}" id="fMin"></label>
+    <label class="field">Status<select id="fSt">${["All","New","In Review","Approved","Rejected"].map(p=>`<option ${f.status===p?"selected":""}>${p}</option>`).join("")}</select></label>
+    <label class="field" style="flex:1;min-width:160px">Search<input id="fQ" placeholder="Case ID or account" value="${esc(f.q)}"></label>
+  </div><div class="card tablewrap">${caseTable(list,true)}</div>`;
+}
+after.cases=()=>{
+  $("#fPat").onchange=e=>{S.filters.pattern=e.target.value;render();};
+  $("#fSt").onchange=e=>{S.filters.status=e.target.value;render();};
+  $("#fMin").oninput=e=>{$("#minV").textContent=e.target.value;}; $("#fMin").onchange=e=>{S.filters.min=+e.target.value;render();};
+  $("#fQ").oninput=e=>{S.filters.q=e.target.value; clearTimeout(S._q); S._q=setTimeout(()=>{render(); const q=$("#fQ"); q.focus(); q.setSelectionRange(q.value.length,q.value.length);},250);};
+};
+
+/* ------------------------------------------------------------------ graph */
+function graphFor(c){
+  if(c.id==="C-001") return {
+    nodes:[{id:"ACC_0018",x:170,y:215,r:92},{id:"ACC_0033",x:360,y:85,r:56},{id:"ACC_0141",x:560,y:215,r:55},{id:"ACC_0207",x:360,y:345,r:73},{id:"ACC_0311",x:40,y:90,r:18},
+           {id:"DEV_009",x:600,y:370,kind:"dev"},{id:"192.0.2.44",x:120,y:380,kind:"ip"}],
+    edges:[["ACC_0018","ACC_0033","48,200.00","2026-09-03","E2",1],["ACC_0033","ACC_0141","46,750.00","2026-09-03","E3",1],["ACC_0141","ACC_0207","45,100.00","2026-09-04","E4",1],["ACC_0207","ACC_0018","44,300.00","2026-09-05","E5",1],["ACC_0311","ACC_0018","50,000.00","2026-09-02","E8",2],
+           ["DEV_009","ACC_0033","","","E6",0],["DEV_009","ACC_0141","","","E6",0],["DEV_009","ACC_0207","","","E6",0],["192.0.2.44","ACC_0018","","","E10",0],["192.0.2.44","ACC_0207","","","E10",0]]};
+  const n=c.accts, nodes=[], edges=[]; const cx=330,cy=215;
+  const num=parseInt(c.title.match(/ACC_(\d{4})/)?.[1]||"500");
+  const ids=[...Array(n)].map((_,i)=>"ACC_"+String((num+i*37)%999+1).padStart(4,"0"));
+  if(c.title.match(/ACC_\d{4}/)) ids[0]=c.title.match(/ACC_\d{4}/)[0];
+  if(c.patterns.includes("Cycle")){ ids.forEach((id,i)=>{const a=-Math.PI/2+i*2*Math.PI/n; nodes.push({id,x:cx+170*Math.cos(a),y:cy+160*Math.sin(a),r:i?60+((i*7)%15):c.score});}); ids.forEach((id,i)=>edges.push([id,ids[(i+1)%n],money(40000-i*900),"2026-09-1"+(i%9),"",1])); }
+  else if(c.patterns.includes("Fan-in")||c.patterns.includes("Fan-out")){ nodes.push({id:ids[0],x:cx,y:cy,r:c.score}); ids.slice(1).forEach((id,i)=>{const a=i*2*Math.PI/(n-1); nodes.push({id,x:cx+180*Math.cos(a),y:cy+165*Math.sin(a),r:35+((i*11)%25)}); edges.push(c.patterns.includes("Fan-in")?[id,ids[0],money(9200+i*85),"2026-09-12","",1]:[ids[0],id,money(12000+i*400),"2026-09-14","",1]);}); }
+  else { nodes.push({id:"DEV_021",x:cx,y:cy,kind:"dev"}); ids.forEach((id,i)=>{const a=i*2*Math.PI/n; nodes.push({id,x:cx+170*Math.cos(a),y:cy+150*Math.sin(a),r:i?45+i*4:c.score}); edges.push(["DEV_021",id,"","","",0]);}); }
+  return {nodes,edges};
+}
+function drawGraph(){
+  const svg=$("#gsvg"); if(!svg) return; const g=S.nodes;
+  const pos=Object.fromEntries(g.nodes.map(n=>[n.id,n]));
+  const rad=n=>n.kind?9:10+n.r/7;
+  let out=`<defs><marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="var(--high)"/></marker><marker id="arr2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="var(--med)"/></marker></defs>`;
+  g.edges.forEach(([a,b,amt,dt,ev,sus])=>{ const A=pos[a],B=pos[b]; const dx=B.x-A.x,dy=B.y-A.y,L=Math.hypot(dx,dy)||1; const ra=rad(A)+2, rb=rad(B)+5;
+    const x1=A.x+dx/L*ra,y1=A.y+dy/L*ra,x2=B.x-dx/L*rb,y2=B.y-dy/L*rb; const col=sus===1?"var(--high)":sus===2?"var(--med)":"var(--muted)";
+    out+=`<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${col}" stroke-width="${sus?2.4:1.2}" ${sus?`marker-end="url(#${sus===1?"arr":"arr2"})"`:'stroke-dasharray="4 4"'} data-ev="${ev}" class="edge"/>`;
+    if(amt){ const mx=(x1+x2)/2,my=(y1+y2)/2; out+=`<text x="${mx}" y="${my-6}" text-anchor="middle" font-size="11.5" font-weight="600" fill="${col}" style="paint-order:stroke;stroke:var(--panel);stroke-width:4px">${amt}</text>`; } });
+  g.nodes.forEach(n=>{ const r=rad(n);
+    const shape = n.kind? `<rect x="${n.x-r}" y="${n.y-r}" width="${2*r}" height="${2*r}" rx="3" fill="var(--panel)" stroke="var(--muted)" stroke-width="1.6"/>`
+      : `<circle cx="${n.x}" cy="${n.y}" r="${r}" fill="${band(n.r)}" stroke="var(--panel)" stroke-width="2.5"/>`;
+    out+=`<g class="node" data-id="${n.id}" tabindex="0">${shape}<text x="${n.x}" y="${n.y+r+15}" text-anchor="middle" font-size="12" font-weight="600" fill="var(--ink)" style="paint-order:stroke;stroke:var(--panel);stroke-width:4px">${n.id}</text></g>`; });
+  svg.innerHTML=out;
+  svg.querySelectorAll(".node").forEach(el=>{ const n=pos[el.dataset.id];
+    el.onmousemove=e=>{ const a=ACCTS[n.id]; tip(e, n.kind?`<b>${n.id}</b><br>${n.kind==="dev"?"Device":"IP address"} shared by linked accounts`:`<b>${n.id}</b> · risk ${n.r}<br>${a?esc(a.name)+"<br>"+a.bank+" · "+a.country:"Synthetic account"}`); };
+    el.onmouseleave=()=>tip(null);
+    el.onpointerdown=e=>{ e.preventDefault(); el.setPointerCapture(e.pointerId); const pt=svg.createSVGPoint();
+      const move=ev=>{ pt.x=ev.clientX; pt.y=ev.clientY; const p=pt.matrixTransform(svg.getScreenCTM().inverse()); n.x=Math.max(20,Math.min(680,p.x)); n.y=Math.max(20,Math.min(410,p.y)); drawGraph(); };
+      const up=()=>{ document.removeEventListener("pointermove",move); document.removeEventListener("pointerup",up); };
+      document.addEventListener("pointermove",move); document.addEventListener("pointerup",up); tip(null); };
+  });
+  svg.querySelectorAll(".edge").forEach(el=>{ if(!el.dataset.ev) return; el.style.cursor="pointer";
+    el.onmousemove=e=>{ const ev=EV.find(x=>x.id===el.dataset.ev); tip(e,`<b>${ev.id}</b> ${esc(ev.summary)}`); }; el.onmouseleave=()=>tip(null);
+    el.onclick=()=>showEvidence(el.dataset.ev); });
+}
+
+/* ------------------------------------------------------------------ Investigate */
+function Investigate(){
+  const c=caseById(S.caseId);
+  if(!S.nodes||S.nodes.case!==c.id){ S.nodes=graphFor(c); S.nodes.case=c.id; }
+  const full=c.id==="C-001";
+  const why = full? [["+35","Member of 4-hop cycle AL-0003, closed in 2 days"],["+20","Rapid pass-through AL-0005: 50,000.00 USD in, 48,200.00 USD out within 19 h"],["+15","Shares IP 192.0.2.44 with ACC_0207 (AL-0008)"],["+12","Highest PageRank in case"],["+10","Betweenness 0.67"]]
+    : [["+"+Math.min(35,c.score-30),`Member of ${c.patterns[0].toLowerCase()} pattern`],["+15","Activity concentrated in 48 h window"],["+"+(c.score-Math.min(35,c.score-30)-15),"Centrality within case"]];
+  const accRows = full? Object.entries(ACCTS) : S.nodes.nodes.filter(n=>!n.kind).map(n=>[n.id,{name:"Synthetic account",bank:"—",risk:n.r}]);
+  const tabs=[["evidence","Evidence"],["timeline","Timeline"],["sar","SAR draft"],["trace","Agent trace"],["ask","Ask the case"]];
+  return `<div class="inv-head"><div><h1>Case ${c.id} · ${esc(c.title)}</h1>
+    <p class="sub" style="margin-bottom:0">Score <b style="color:${band(c.score)}">${c.score}</b> · Status <span class="status ${c.status.replace(' ','')}">${c.status}</span> · ${c.accts} accounts · ${money(c.amount)} USD</p></div>
+    <span class="spacer"></span>
+    <label class="field">Case<select id="caseSel">${CASES.map(x=>`<option ${x.id===c.id?"selected":""}>${x.id}</option>`).join("")}</select></label>
+    <button class="btn primary" style="align-self:flex-end" onclick="S.tab='sar';render();startDraft()" ${S.sar==="running"?"disabled":""}>Draft SAR ▶</button></div>
+  <div class="inv-grid" style="margin-top:16px">
+    <div class="card graphbox"><svg id="gsvg" viewBox="0 0 700 430" aria-label="Network graph of case accounts"></svg>
+      <div class="graphlegend"><span><i style="background:var(--high)"></i>High ≥70</span><span><i style="background:var(--med)"></i>Medium</span><span><i style="background:var(--low)"></i>Low</span><span>Red edges = suspicious · drag nodes</span></div></div>
+    <div style="display:flex;flex-direction:column;gap:16px">
+      <div class="card why"><h2>Why flagged ${full?"· ACC_0018":""}</h2><ul>${why.map(([p,t])=>`<li><span class="pts">${p}</span><span>${esc(t)}</span></li>`).join("")}</ul></div>
+      <div class="card"><h2>Account risk</h2><div class="tablewrap"><table><thead><tr><th>Account</th><th>Name</th><th class="num">Risk</th></tr></thead><tbody>
+        ${accRows.map(([id,a])=>`<tr><td class="mono">${id}</td><td>${esc(a.name)}</td><td class="num"><span class="score">${a.risk}<i style="background:${band(a.risk)}"></i></span></td></tr>`).join("")}</tbody></table></div></div>
+    </div></div>
+  <div class="tabs" role="tablist">${tabs.map(([k,l])=>`<button role="tab" aria-selected="${S.tab===k}" onclick="S.tab='${k}';render()">${l}</button>`).join("")}</div>
+  <div id="tabbody">${full?{evidence:TabEvidence,timeline:TabTimeline,sar:TabSar,trace:TabTrace,ask:TabAsk}[S.tab]():`<div class="card empty">In this mockup the evidence, SAR drafting and trace flows are wired for case C-001. Pick C-001 above to see them.</div>`}</div>`;
+}
+after.investigate=()=>{
+  drawGraph();
+  $("#caseSel").onchange=e=>{ S.caseId=e.target.value; render(); };
+  const ask=$("#askIn"); if(ask) ask.onkeydown=e=>{ if(e.key==="Enter"&&ask.value.trim()){ askCase(ask.value.trim()); } };
+};
+function TabEvidence(){
+  return `<div class="card tablewrap"><table><thead><tr><th>ID</th><th>Kind</th><th>Summary</th></tr></thead><tbody>
+  ${EV.map(e=>`<tr id="ev-${e.id}"><td class="mono"><b>${e.id}</b></td><td><span class="tag">${e.kind}</span></td><td>${esc(e.summary)}</td></tr>`).join("")}</tbody></table>
+  <p class="note">Up to 40 items per case, ranked: pattern transactions, then shared identifiers, then metrics. Only this pack is sent to the LLM.</p></div>`;
+}
+function showEvidence(id){ S.tab="evidence"; render(); const r=$("#ev-"+id); if(r){ r.scrollIntoView({block:"center",behavior:"smooth"}); r.classList.add("flash"); setTimeout(()=>r.classList.remove("flash"),1600);} }
+function TabTimeline(){
+  const pts=[["2026-09-02 15:20",50000,"T000398","ACC_0311 → ACC_0018","var(--med)"],["2026-09-03 10:14",48200,"T000412","ACC_0018 → ACC_0033","var(--high)"],["2026-09-03 16:40",46750,"T000419","ACC_0033 → ACC_0141","var(--high)"],["2026-09-04 09:05",45100,"T000437","ACC_0141 → ACC_0207","var(--high)"],["2026-09-05 11:32",44300,"T000455","ACC_0207 → ACC_0018","var(--high)"]];
+  const t0=Date.parse("2026-09-02T00:00Z"), t1=Date.parse("2026-09-06T00:00Z"); const X=t=>60+(Date.parse(t.replace(" ","T")+"Z")-t0)/(t1-t0)*600; const Y=v=>260-(v-40000)/12000*220;
+  let s=`<svg viewBox="0 0 700 300" style="width:100%;height:auto;display:block">`;
+  [40000,44000,48000,52000].forEach(v=>{ s+=`<line x1="60" x2="660" y1="${Y(v)}" y2="${Y(v)}" stroke="var(--line)"/><text x="52" y="${Y(v)+4}" text-anchor="end" font-size="11" fill="var(--muted)">${v/1000}k</text>`; });
+  ["2026-09-02","2026-09-03","2026-09-04","2026-09-05","2026-09-06"].forEach(d=>{ const x=60+(Date.parse(d+"T00:00Z")-t0)/(t1-t0)*600; s+=`<line x1="${x}" x2="${x}" y1="30" y2="262" stroke="var(--line)" stroke-dasharray="3 4"/><text x="${x}" y="282" text-anchor="middle" font-size="11" fill="var(--muted)">${d.slice(5)}</text>`; });
+  s+=`<polyline fill="none" stroke="var(--high)" stroke-width="1.5" stroke-dasharray="5 4" points="${pts.slice(1).map(p=>X(p[0])+","+Y(p[1])).join(" ")}"/>`;
+  pts.forEach(p=>{ s+=`<circle cx="${X(p[0])}" cy="${Y(p[1])}" r="7" fill="${p[4]}"/><text x="${X(p[0])}" y="${Y(p[1])-14}" text-anchor="middle" font-size="11" fill="var(--ink)">${p[2]} · ${money(p[1])}</text><text x="${X(p[0])}" y="${Y(p[1])+22}" text-anchor="middle" font-size="10.5" fill="var(--muted)">${p[3]}</text>`; });
+  return `<div class="card"><h2>Money flow over time (USD)</h2>${s}</svg><p class="note">Value decays about 2–3% per hop and returns to ACC_0018 in 49 hours.</p></div>`;
+}
+function TabTrace(){
+  if(S.sar!=="done") return `<div class="card empty">Run <b>Draft SAR</b> to see each agent step, model, latency and retries.</div>`;
+  const first=11/13*100;
+  return `<div class="card tablewrap"><table><thead><tr><th>#</th><th>Step</th><th>Model</th><th class="num">Latency</th><th>Cache</th><th>Notes</th></tr></thead><tbody>
+  ${TRACE.map((r,i)=>`<tr><td>${i+1}</td><td><b>${r[0]}</b></td><td class="mono">${S.mock&&r[1]!=="deterministic"?"mock":r[1]}</td><td class="num">${r[2]}</td><td>${r[3]}</td><td>${esc(r[4])}</td></tr>`).join("")}</tbody></table>
+  <p class="note">Replay from cache: 6 steps, 1.4 s. Fallback chain: Gemini → Groq → mock.</p></div>
+  <div class="card" style="margin-top:16px"><h2>Confidence signals (logged to decision_log)</h2><div class="kpis" style="grid-template-columns:repeat(5,minmax(0,1fr));margin:0">
+  ${[["100%","Evidence coverage"],[first.toFixed(1)+"%","Pass rate, first try"],["1","Repair rounds used"],["0.91","LLM self-confidence (weak signal)"],["No","Fallback used"]].map(([v,l])=>`<div class="kpi"><div class="v" style="font-size:20px">${v}</div><div class="l">${l}</div></div>`).join("")}</div>
+  <p class="note">Logged for every draft so the M.Tech work can calibrate these signals against analyst outcomes. Not used to gate decisions in the MVP.</p></div>`;
+}
+function TabAsk(){
+  const sug=["How much returned to ACC_0018?","Who uses device DEV_009?","Is ACC_0018 a criminal?"];
+  return `<div class="card"><div class="chat" id="chat">${S.chat.length?S.chat.map(m=>`<div class="msg ${m.r}">${m.t}</div>`).join(""):`<p class="note">Answers come only from this case's evidence pack, with citations. Out-of-scope questions are refused.</p>`}</div>
+  <div class="row" style="margin-top:12px">${sug.map(s=>`<button class="sugg" onclick="askCase(this.textContent)">${s}</button>`).join("")}</div>
+  <div class="row" style="margin-top:10px"><input id="askIn" class="field" placeholder="Ask about this case" style="flex:1;border:1px solid var(--line);border-radius:7px;padding:8px 10px;background:var(--panel)"><button class="btn primary" onclick="const v=$('#askIn').value.trim(); if(v) askCase(v)">Ask</button></div></div>`;
+}
+function chipHtml(ids){ return ids.map(i=>`<button class="chip" onclick="showEvidence('${i}')" onmousemove="tipEv(event,'${i}')" onmouseleave="tip(null)">${i}</button>`).join(""); }
+function tipEv(e,i){ const ev=EV.find(x=>x.id===i); tip(e, ev?`<b>${i}</b> ${esc(ev.summary)}`:`<b>${i}</b> not in evidence pack`); }
+function askCase(q){
+  const l=q.toLowerCase(); let a;
+  if(l.includes("returned")||l.includes("how much")) a=`44,300.00 USD returned to ACC_0018 on 2026-09-05 ${chipHtml(["E5"])}, which is 91.9% of the first transfer ${chipHtml(["E7"])}.`;
+  else if(l.includes("dev_009")||l.includes("device")) a=`DEV_009 was used by ACC_0033, ACC_0141 and ACC_0207 ${chipHtml(["E6"])}. The evidence does not identify who owns the device.`;
+  else if(l.includes("criminal")||l.includes("guilty")||l.includes("launderer")) a=`I can't answer that. The evidence pack describes transactions and shared identifiers, not anyone's intent or legal status.`;
+  else a=`That isn't covered by this case's evidence pack. Try asking about amounts, dates, accounts or shared identifiers.`;
+  S.chat.push({r:"u",t:esc(q)},{r:"a",t:a}); render(); const i=$("#askIn"); if(i) i.focus();
+}
+
+/* ------------------------------------------------------------------ SAR */
+function TabSar(){
+  if(S.sar==="idle") return `<div class="card empty">No draft yet. <b>Draft SAR</b> runs four steps: evidence builder, typology agent, narrative agent and validator.<br><br><button class="btn primary" onclick="startDraft()">Draft SAR ▶</button></div>`;
+  if(S.sar==="running") return `<div class="card"><h2>Drafting…</h2><ul class="steps" id="steps">${TRACE.map((r,i)=>`<li id="st${i}"><span class="dot"></span><span><b>${r[0]}</b> <span class="note">${r[1]}</span></span></li>`).join("")}</ul></div>`;
+  const g=validateAll(), c=caseById("C-001"), allOk=g===100;
+  let body="";
+  for(const k in S.narr){ body+=`<div class="sec">${SEC_LABEL[k]}</div>`;
+    S.narr[k].forEach((s,i)=>{ if(S.editing){ body+=`<div class="edit-sent"><textarea data-k="${k}" data-i="${i}" class="etxt">${esc(s.text)}</textarea><input data-k="${k}" data-i="${i}" class="eids" value="${s.ids.join(", ")}" aria-label="Evidence IDs"><button class="btn danger" onclick="delSent('${k}',${i})" aria-label="Delete sentence">Delete</button></div>`; return; }
+      const ok=!s.issues.length;
+      body+=`<div class="sent ${ok?"ok":"bad"}"><span class="mark">${ok?"✓":"✗"}</span><div class="txt">${esc(s.text)} ${chipHtml(s.ids)}${ok?"":`<div class="issues">${s.issues.map(esc).join(" · ")}</div>`}</div></div>`; }); }
+  const approved=c.status==="Approved", rejected=c.status==="Rejected";
+  return `<div class="card">
+   <div class="sar-head"><span class="gscore ${allOk?"ok":"bad"}">Grounding ${g}% ${allOk?"✓":"✗"}</span><span>Typology: <b>Layering via circular transfers</b></span><span class="spacer"></span>
+     <span class="note">Time to draft 20.7 s · baseline ${BASE_MIN} min (assumed)</span></div>
+   ${allOk?"":`<p style="color:var(--bad-ink);margin:0 0 8px;font-size:14px">Red sentences failed validation. Edit or delete them, then re-validate. Approval stays locked until grounding is 100%.</p>`}
+   ${body}
+   <div class="row" style="margin-top:18px;border-top:1px solid var(--line);padding-top:14px">
+    ${S.editing?`<button class="btn primary" onclick="saveEdits()">Re-validate</button><button class="btn" onclick="S.editing=false;render()">Cancel</button>`
+     :`<button class="btn" onclick="S.editing=true;render()" ${approved?"disabled":""}>Edit text</button>
+       <button class="btn ok" onclick="approve()" ${allOk&&!approved&&!rejected?"":"disabled"}>Approve</button>
+       <button class="btn danger" onclick="S.rejectOpen=!S.rejectOpen;render()" ${approved||rejected?"disabled":""}>Reject</button>
+       <span class="spacer"></span><button class="btn primary" onclick="openPdf()">Preview PDF</button>`}
+   </div>
+   ${S.rejectOpen?`<div class="row" style="margin-top:10px"><input id="rejReason" placeholder="Reason (required)" style="flex:1;border:1px solid var(--line);border-radius:7px;padding:8px 10px;background:var(--panel)"><button class="btn danger" onclick="reject()">Confirm reject</button></div>`:""}
+   ${approved?`<p class="note" style="margin-top:10px">Approved by ${S.approvedBy}. Logged in the audit trail.</p>`:""}
+   ${rejected?`<p class="note" style="margin-top:10px">Rejected. Reason logged in the audit trail.</p>`:""}
+  </div>`;
+}
+function startDraft(){
+  if(S.caseId!=="C-001"){ toast("In this mockup, drafting is wired for C-001."); return; }
+  S.sar="running"; S.editing=false; S.rejectOpen=false; S.tab="sar"; render();
+  const fast=S.prewarm; let i=0;
+  const step=()=>{ if(i>0){ const p=$("#st"+(i-1)); if(p){ p.className=i-1===3?"warn":"done"; } }
+    if(i===TRACE.length){ setTimeout(()=>{ S.narr=freshNarr(); S.sar="done"; const c=caseById("C-001"); const before=c.status; if(before==="New") c.status="In Review";
+        S.drafted["C-001"]={g:validateAll(),min:0.35}; audit("draft_created","C-001",{status:before},{status:c.status,draft:"D-001-v1",grounding:S.drafted["C-001"].g}); render(); },250); return; }
+    const cur=$("#st"+i); if(cur) cur.className="run"; i++; setTimeout(step,[300,700,900,350,800,350][i-1]); };
+  setTimeout(step,50);
+}
+function saveEdits(){
+  document.querySelectorAll(".etxt").forEach(t=>{ S.narr[t.dataset.k][+t.dataset.i].text=t.value; });
+  document.querySelectorAll(".eids").forEach(t=>{ S.narr[t.dataset.k][+t.dataset.i].ids=t.value.split(/[ ,]+/).filter(Boolean).map(s=>s.toUpperCase()); });
+  S.editing=false; const g=validateAll(); S.drafted["C-001"].g=g; audit("draft_edited","C-001",null,{grounding:g}); render();
+}
+function delSent(k,i){ saveEditsSilently(); S.narr[k].splice(i,1); render(); }
+function saveEditsSilently(){ document.querySelectorAll(".etxt").forEach(t=>{ S.narr[t.dataset.k][+t.dataset.i].text=t.value; }); document.querySelectorAll(".eids").forEach(t=>{ S.narr[t.dataset.k][+t.dataset.i].ids=t.value.split(/[ ,]+/).filter(Boolean).map(s=>s.toUpperCase()); }); }
+function approve(){ const c=caseById("C-001"); const b=c.status; c.status="Approved"; S.approvedBy="Demo Analyst"; audit("approved","C-001",{status:b},{status:"Approved",approver:"Demo Analyst"}); toast("Case C-001 approved. The PDF watermark is removed."); render(); }
+function reject(){ const r=($("#rejReason").value||"").trim(); if(!r){ $("#rejReason").focus(); $("#rejReason").placeholder="A reason is required to reject"; return; }
+  const c=caseById("C-001"); const b=c.status; c.status="Rejected"; S.rejectOpen=false; audit("rejected","C-001",{status:b},{status:"Rejected",reason:r}); render(); }
+
+/* ------------------------------------------------------------------ PDF preview */
+function openPdf(){
+  const c=caseById("C-001"), approved=c.status==="Approved", g=validateAll(); let fn=0; const notes=[];
+  const sects=Object.keys(S.narr).map(k=>`<h3>${SEC_LABEL[k]}</h3><p style="margin:0">${S.narr[k].map(s=>{ fn++; notes.push(s.ids); return esc(s.text)+`<sup>[${s.ids.join(",")}]</sup>`; }).join(" ")}</p>`).join("");
+  const svg=$("#gsvg")? $("#gsvg").outerHTML.replace('id="gsvg"','style="width:100%;height:220px"') : "";
+  $("#modal").innerHTML=`<div class="paper">${approved?"":`<div class="wm">DRAFT – Human review required</div>`}
+   <div style="display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #1E3A8A;padding-bottom:8px"><div><b style="font-size:18px;color:#1E3A8A">RingSight</b><div style="font-size:12px;color:#475569">Suspicious Activity Report narrative (draft for filing)</div></div>
+   <div style="text-align:right;font-size:12px">Case C-001<br>2026-10-16<br><b>${approved?"APPROVED":c.status.toUpperCase()}</b></div></div>
+   <h3>Case summary</h3><div class="box"><span>Score: <b>92</b></span><span>Typology: Layering via circular transfers</span><span>Total amount: 234,350.00 USD</span><span>Date range: 2026-09-02 to 2026-09-05</span><span style="grid-column:1/-1">Subjects: ACC_0018, ACC_0033, ACC_0141, ACC_0207, ACC_0311</span></div>
+   <h3>Network</h3>${svg}${sects}
+   <h3>Appendix A — Evidence</h3><table><tbody>${EV.map(e=>`<tr><td><b>${e.id}</b></td><td>${e.kind}</td><td>${esc(e.summary)}</td></tr>`).join("")}</tbody></table>
+   <h3>Appendix B — Validation &amp; approval</h3><p style="margin:0">Grounding score ${g}% (${fn} sentences). Validator: deterministic checks on accounts, transactions, amounts (±1%), dates and speculation lexicon. ${approved?`Approved by ${S.approvedBy}, 2026-10-16 09:12 UTC.`:"Not yet approved."}</p>
+   <div class="row" style="margin-top:22px;justify-content:flex-end"><button class="btn" onclick="$('#modal').classList.remove('open')" style="color:#111827;background:#fff">Close</button></div></div>`;
+  $("#modal").classList.add("open");
+}
+$("#modal").onclick=e=>{ if(e.target.id==="modal") $("#modal").classList.remove("open"); };
+
+/* ------------------------------------------------------------------ Audit & metrics */
+function Audit(){
+  const m=METRICS[S.metricMode];
+  const rows=m.map(([p,pr,rc])=>{ const f=2*pr*rc/(pr+rc); return [p,pr,rc,f]; });
+  return `<h1>Audit &amp; metrics</h1><p class="sub">Detection quality against planted ground truth, and every analyst action in a tamper-evident log.</p>
+  <div class="card"><div class="row"><h2 style="margin:0">Detection quality</h2><span class="spacer"></span><div class="seg" role="group"><button aria-pressed="${S.metricMode==="ring"}" onclick="S.metricMode='ring';render()">Ring-level</button><button aria-pressed="${S.metricMode==="txn"}" onclick="S.metricMode='txn';render()">Transaction-level</button></div></div>
+  <div class="grid2" style="margin-top:12px"><div class="tablewrap"><table><thead><tr><th>Pattern</th><th class="num">Precision</th><th class="num">Recall</th><th class="num">F1</th></tr></thead><tbody>
+  ${rows.map(r=>`<tr><td>${r[0]}</td>${r.slice(1).map(v=>`<td class="num">${v.toFixed(2)}</td>`).join("")}</tr>`).join("")}</tbody></table>
+  <p class="note">${S.metricMode==="ring"?"A ring counts as found when ≥ 60% of its accounts land in one case. Precision below 1.0 comes from the planted decoys.":"Per-transaction labels from is_laundering and gt_pattern."}</p></div>
+  <div>${rows.map(r=>`<div style="margin:6px 0 12px"><div style="font-size:13px;margin-bottom:4px">${r[0]}</div>${[["P",r[1],"var(--primary)"],["R",r[2],"var(--accent)"],["F1",r[3],"var(--low)"]].map(([l,v,col])=>`<div class="row" style="gap:6px;margin:2px 0"><span style="width:18px;font-size:11px;color:var(--muted)">${l}</span><div class="bar" style="flex:1;height:8px"><span style="width:${v*100}%;background:${col}"></span></div></div>`).join("")}</div>`).join("")}</div></div></div>
+  <div class="card" style="margin-top:16px"><div class="row"><h2 style="margin:0">Audit log</h2><span class="pill" style="margin-left:8px"><i></i>Hash chain verified</span><span class="spacer"></span><button class="btn" onclick="exportCsv()">Export CSV</button></div>
+  <div class="tablewrap" style="margin-top:10px"><table><thead><tr><th>Time (UTC)</th><th>Actor</th><th>Action</th><th>Case</th><th>Change</th><th>Hash</th></tr></thead><tbody>
+  ${S.audit.slice().reverse().map(a=>`<tr><td class="mono">${a.ts}</td><td>${a.actor}</td><td><b>${a.action}</b></td><td class="mono">${a.caseId}</td><td><details><summary class="note" style="cursor:pointer">before → after</summary><pre class="mono" style="white-space:pre-wrap !important;margin:6px 0 0">${esc(JSON.stringify(a.before))}\n→ ${esc(JSON.stringify(a.after))}</pre></details></td><td class="mono" title="prev ${a.prev}">${a.hash.slice(0,10)}…</td></tr>`).join("")}</tbody></table></div></div>`;
+}
+function exportCsv(){
+  const lines=["ts,actor,action,case_id,before,after,prev_hash,row_hash",...S.audit.map(a=>[a.ts,a.actor,a.action,a.caseId,JSON.stringify(a.before),JSON.stringify(a.after),a.prev,a.hash].map(v=>`"${String(v).replace(/"/g,'""')}"`).join(","))];
+  const url=URL.createObjectURL(new Blob([lines.join("\n")],{type:"text/csv"})); const a=document.createElement("a"); a.href=url; a.download="audit_log.csv"; a.click(); setTimeout(()=>URL.revokeObjectURL(url),1000);
+}
+
+/* ------------------------------------------------------------------ chrome */
+function toast(msg){ const t=document.createElement("div"); t.textContent=msg; t.setAttribute("role","status");
+  Object.assign(t.style,{position:"fixed",right:"20px",bottom:"calc(20px + env(safe-area-inset-bottom,0px))",background:"var(--ink)",color:"var(--surface)",padding:"10px 14px",borderRadius:"8px",fontSize:"14px",zIndex:60,maxWidth:"360px"});
+  document.body.appendChild(t); setTimeout(()=>t.remove(),3200); }
+$("#demoBtn").onclick=runDemo;
+$("#injectToggle").onchange=e=>{ S.inject=e.target.checked;
+  if(S.sar==="done"){ if(S.inject){ if(!S.narr.activity.some(s=>s.fake)) S.narr.activity.splice(2,0,{text:FAKE[0],ids:[...FAKE[1]],fake:true}); }
+    else { S.narr.activity=S.narr.activity.filter(s=>!s.fake); }
+    S.drafted["C-001"].g=validateAll(); if(S.inject){ S.page="investigate"; S.caseId="C-001"; S.tab="sar"; } render();
+    toast(S.inject?"False sentence injected and re-validated.":"Injected sentence removed."); }
+  else toast(S.inject?"Injection armed: the next draft will include a false sentence.":"Injection off."); };
+$("#mockToggle").onchange=e=>{ S.mock=e.target.checked; const p=$("#llmpill"); p.className="pill"+(S.mock?" mock":""); p.innerHTML=`<i></i>${S.mock?"Mock mode · offline":"Gemini ✓ · Groq ✓"}`; if(S.page==="investigate") render(); };
+$("#menuBtn").onclick=()=>$("#sidebar").classList.toggle("open");
+$("#wireBtn").onclick=()=>{ S.wire=true; document.body.classList.add("wire"); $("#wireBtn").setAttribute("aria-pressed","true"); $("#hifiBtn").setAttribute("aria-pressed","false"); };
+$("#hifiBtn").onclick=()=>{ S.wire=false; document.body.classList.remove("wire"); $("#hifiBtn").setAttribute("aria-pressed","true"); $("#wireBtn").setAttribute("aria-pressed","false"); };
+render();
+</script>
+</body>
+</html>
