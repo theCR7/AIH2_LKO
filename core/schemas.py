@@ -24,6 +24,8 @@ class Alert(BaseModel):
     total_amount: float
     reason: str  # human-readable explanation
     severity: str = "medium"  # low | medium | high
+    # Account the pattern centres on (fan-in receiver / fan-out sender); None otherwise.
+    focus: str | None = None
 
 
 class AccountRisk(BaseModel):

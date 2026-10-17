@@ -71,7 +71,8 @@ def detect_fan_in(bundle: GraphBundle, rules: Rules) -> list[RawAlert]:
                   f"(each below {fmt_amount(cfg.max_amount_each)}).")
         alerts.append(
             RawAlert(pattern="fan_in", accounts=sorted({receiver, *senders}),
-                     txn_ids=txn_ids, total_amount=total, reason=reason, severity="high")
+                     txn_ids=txn_ids, total_amount=total, reason=reason, severity="high",
+                     focus=receiver)
         )
     return alerts
 
@@ -102,7 +103,8 @@ def detect_fan_out(bundle: GraphBundle, rules: Rules) -> list[RawAlert]:
                   f"within {cfg.window_hours}h from {fmt_date(first)}.")
         alerts.append(
             RawAlert(pattern="fan_out", accounts=sorted({sender, *receivers}),
-                     txn_ids=txn_ids, total_amount=total, reason=reason, severity="high")
+                     txn_ids=txn_ids, total_amount=total, reason=reason, severity="high",
+                     focus=sender)
         )
     return alerts
 

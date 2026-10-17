@@ -40,6 +40,8 @@ class RawAlert:
     total_amount: float
     reason: str
     severity: str = "medium"
+    # The account the pattern is about (fan-in receiver, fan-out sender); used for titles.
+    focus: str | None = None
 
 
 @dataclass

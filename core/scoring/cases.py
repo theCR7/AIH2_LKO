@@ -50,6 +50,13 @@ def _case_title(patterns: list[str], accounts: list[str], alerts: list[Alert]) -
         n_hops = max((len(al.accounts) for al in alerts if al.pattern == "cycle"), default=0)
         return f"{n_hops}-hop circular flow via {hub}"
     if dominant in ("fan_in", "fan_out"):
+        # Every account appears once in a fan alert, so the count-based hub is arbitrary
+        # (it picked a sender for fan-in). Name the account the pattern is about instead:
+        # the receiver for fan-in, the sender for fan-out, from the largest such alert.
+        focused = sorted((al for al in alerts if al.pattern == dominant and al.focus),
+                         key=lambda al: (-al.total_amount, al.alert_id))
+        if focused:
+            hub = focused[0].focus
         return f"{label} involving {hub}"
     return f"{label} around {hub}"
 

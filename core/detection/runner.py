@@ -64,7 +64,7 @@ def _assign_alert_ids(raw: list[RawAlert]) -> list[Alert]:
         alerts.append(
             Alert(alert_id=f"AL-{i:04d}", pattern=r.pattern, accounts=r.accounts,
                   txn_ids=r.txn_ids, total_amount=r.total_amount, reason=r.reason,
-                  severity=r.severity)
+                  severity=r.severity, focus=r.focus)
         )
     return alerts
 
