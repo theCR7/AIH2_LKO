@@ -76,14 +76,21 @@ def score_accounts(bundle: GraphBundle, alerts: list[Alert], rules: Rules,
     contributions: dict[str, list[str]] = {a: [] for a in flagged}
     scores: dict[str, float] = {a: 0.0 for a in flagged}
 
+    # Each pattern counts ONCE per account. Stacking every alert linearly saturated the
+    # cap on real data (an account in four pass-through alerts reached 100 and the top
+    # ten cases all tied); repeats are noted in the explanation instead.
+    hits: dict[tuple[str, str], list[str]] = {}
     for alert in alerts:
-        pts = float(weights.get(alert.pattern, 0))
-        if pts <= 0:
+        if float(weights.get(alert.pattern, 0)) <= 0:
             continue
-        label = _PATTERN_LABEL.get(alert.pattern, alert.pattern)
         for acct in alert.accounts:
-            scores[acct] += pts
-            contributions[acct].append(f"+{pts:.0f} member of {label} ({alert.alert_id})")
+            hits.setdefault((acct, alert.pattern), []).append(alert.alert_id)
+    for (acct, pattern), alert_ids in hits.items():
+        pts = float(weights[pattern])
+        label = _PATTERN_LABEL.get(pattern, pattern)
+        more = f", +{len(alert_ids) - 1} more" if len(alert_ids) > 1 else ""
+        scores[acct] += pts
+        contributions[acct].append(f"+{pts:.0f} member of {label} ({alert_ids[0]}{more})")
 
     pr_w = rules.scoring.centrality.pagerank_weight
     bt_w = rules.scoring.centrality.betweenness_weight
