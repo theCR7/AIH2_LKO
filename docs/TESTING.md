@@ -90,4 +90,66 @@ The redesigned Detect screen ignored `cases.min_case_score`. _Fix:_ `app/screens
 | Detection on 5k txns < 10 s | ✅ ~1.3 s |
 | Audit hash chain verifies (`python -m core.db --verify-audit`) | ✅ |
 
-_Not pursued here: the P10 stretch options (IBM/Kaggle loader, FastAPI, SQL Server) — the Kaggle dataset integration is a separate, approval-gated step._
+_Stretch options not pursued: FastAPI and SQL Server (P10c/d). The IBM/Kaggle loader (P10b) is covered in sections 6–7 below._
+
+
+---
+
+## 6. IBM AML (P10b) — real labelled data from Kaggle
+
+**What was built.** `core/ingest/ibm_loader.py` downloads IBM's public AML benchmark, cleans it, samples by laundering label, remaps accounts to `ACC_####`, and persists it as the single active dataset (`ibm_hismall`). The Upload screen has a **Load IBM AML sample** action; Metrics shows transaction-level precision/recall/F1 for it. Sampling knobs are in `config/rules.yaml` (`ingest.ibm`).
+
+| Item | Result |
+|---|---|
+| Dataset | `ealtman2019/ibm-transactions-for-anti-money-laundering-aml`, file `HI-Small_Trans.csv` (475,664,283 bytes) |
+| Auth | The `KGAT_…` token works as a **Bearer** token against Kaggle's REST API — no `kaggle` CLI or username/key needed. Stored only in the git-ignored `.env`. |
+| Funnel | 5,078,345 rows → 1,668,941 USD→USD rows → sample of **30,000 txns / 29,459 accounts** (all **1,912** USD laundering rows + 16,852 neighbour rows + 11,236 background rows) |
+| Speed | load + sample + persist **7.7 s**; detection **4–6 s** (8.7 s before the fixes below) |
+| Detection | 136 alerts (fan-in 29, fan-out 25, pass-through 82; **no cycles, no shared-identifier** — IBM has no device/IP data), 108 cases |
+| Quality (txn-level) | **precision 0.544 · recall 0.149 · F1 0.233** (284 TP / 238 FP / 1,628 missed) |
+| Live SAR (Groq `gpt-oss-120b`, top case C-001) | **grounding 100.0**, 14/14 statements cited, evidence coverage 1.0, 0 retries, no fallback, 20.1 s |
+| Determinism | scripted run and in-app run produced identical alert/case counts; sampling is seeded (unit-tested) |
+
+**Why recall is low (measured, not guessed).** The file has 5,177 laundering rows but only **1,912 (37%) are USD→USD**; the single-currency filter (needed so amounts are comparable and honestly labelled USD) drops the other 63% (Euro 1,372, Saudi Riyal 374, Swiss Franc 193, Yuan 184, …) and breaks rings that cross currencies. Of 2,707 laundering accounts in the sample only 314 have ≥2 laundering transactions. The rules are also tuned to the synthetic typologies. **Treat IBM as proof of scale and explainability, not an accuracy claim.**
+
+### Faults found by running real data (all fixed, all with regression tests)
+
+| # | Fault | Fix |
+|---|---|---|
+| F3 | **Mega-case**: transitive grouping through hub accounts made the top case 3,553 accounts / 1.8 billion USD | `cases.max_case_accounts` (50): larger groups split into one case per alert (`core/scoring/cases.py`) |
+| F4 | **Mass payer flagged as layering**: one account paying 3,411 receivers in 48 h was the #1 case | `fan_out.max_receivers` / `fan_in.max_senders` = 100 (`config/rules.yaml`, `fan_patterns.py`). Txn precision **0.081 → 0.544**, F1 **0.113 → 0.233**, largest case 3,553 → **45** accounts |
+| F5 | **Score saturation**: an account in 4 pass-through alerts stacked to 100; the top ten cases all tied | each pattern counts once per account, repeats noted ("+3 more") (`core/scoring/risk.py`); no IBM case saturates, 32 distinct scores. Seed-42 unchanged |
+| F6 | **Download stall** at ~130 of 475 MB killed the transfer and the first design would have restarted from zero | resumable download: keeps `.part`, `Range` resume, verifies length, retries (offline tests with a fake `urlopen`) |
+| F7 | **Account regex `ACC_\d{4}`** silently skipped grounding for ids ≥ ACC_10000 (IBM sample has 29k accounts) | `\d{4,}` in validator and QA; the live IBM SAR cites `ACC_25957` correctly |
+| F8 | **Exact weighted betweenness** is O(V·E) — impractical at ~29k nodes (not benchmarked; replaced pre-emptively) | exact up to 2,000 accounts (seed-42 results unchanged), seeded sample of 256 pivots above that (`rules.yaml`) |
+| F9 | Metrics told IBM users "needs the synthetic sample" (it only checked per-ring labels) | shows transaction-level P/R/F1 when only `is_laundering` exists |
+| F10 | Process slip: `git add -A` committed the in-progress `data/HI-Small_Trans.part` (~125 MB) | removed from the (unpushed) commit before any push; `data/*.part` now ignored |
+
+Thresholds F3/F4 were chosen after seeing IBM output — principled (an institution is not structuring) but not cross-validated; seed-42 behaviour and recall 1.0 are unchanged.
+
+---
+
+## 7. Hackathon readiness — verdict
+
+**GO for the showcase**, with the demo path below. **57 pytest pass, ruff clean.**
+
+**Demo-ready**
+- Golden path on seed-42 data: Upload → Detect (C-001/C-002 **High**) → Investigate → live or cached SAR at 100% grounding → sign-off → PDF/TXT → Metrics + verified audit chain. Recall 1.0, deterministic, ~1.3 s detection.
+- Offline mode (`LLM_MODE=mock`) and live Groq both verified; fallback chain verified.
+- Real-data credibility: the same pipeline runs on 30,000 real labelled transactions in seconds and produces a fully grounded SAR.
+
+**Weak / risky — say these before a judge does**
+- **IBM accuracy is modest** (precision 0.54, recall 0.15) for the reasons in section 6. Do not present it as detection accuracy.
+- **First live draft takes ~20 s**, and **Groq's free tier caps `gpt-oss-120b` at 8,000 tokens/minute** while one draft sends ~8k. Measured: pre-warming two drafts back to back hit the cap (HTTP 429); the gateway fell back to `gpt-oss-20b` as designed and both drafts still validated at 100%, but the 20B text is what got cached. Pace live drafts about 65 s apart, or pre-warm and rely on the cache.
+- **IBM needs the 475 MB file in `data/`** (one-time, resumable, needs internet). Download before the demo.
+- **The Demo-mode pre-warm button was dropped in the UI redesign**; the logic still exists in `core/demo.py` (see step 1 below).
+- Pass-through prose can say "forwarded 171%": the rule has a ≥90% floor but no ceiling, so an outflow larger than the inflow qualifies. Consistent with the evidence, odd as prose.
+- Case title names the busiest account, which can differ from the sender in the "Why flagged" sentence (C-001 on IBM: ACC_25316 vs ACC_0619). Per-alert splitting can yield near-duplicate pass-through cases around one hub.
+- Streamlit logs `use_container_width` deprecation notices (removal date has passed); harmless today, will need `width="stretch"` on upgrade. After editing `core/` code, restart the server (Streamlit caches imported modules).
+- **Rotate the Groq and Kaggle keys** — both were pasted in chat.
+
+**Recommended demo path**
+1. *Before the demo* (needs internet once): `.venv/Scripts/python.exe -c "from core.demo import run_demo; print(run_demo().fingerprint)"` regenerates seed 42, runs detection and pre-warms the top-2 SAR drafts so they replay instantly. `run_demo` does not pace its calls, so on the free tier the second draft may fall back to the 20B model (still 100% grounded); for 120b text, delete the `gpt-oss-20b` rows from `llm_cache` and draft C-001 and C-002 about 65 s apart. Confirm `data/HI-Small_Trans.csv` exists.
+2. *Main story (about 5 min):* Upload → **Use sample dataset** → Detect → open C-001 → Draft SAR → click a citation chip → edit one sentence → sign-off → export.
+3. *Real-data segment (60–90 s, optional):* Upload → **Load IBM AML sample** (~15 s) → 108-case queue → open the top case → Draft SAR → Metrics shows the honest P/R/F1.
+4. *If the network or Groq fails:* set `LLM_MODE=mock` in `.env` and restart — instant and offline (IBM needs the cached file).

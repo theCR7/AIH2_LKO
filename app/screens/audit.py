@@ -23,8 +23,8 @@ def render() -> None:
     t = tokens()
 
     st.subheader("Detection quality")
-    st.caption("How the rule-based detectors scored against the known planted patterns "
-               "in the synthetic data (precision, recall, F1 per pattern).")
+    st.caption("How the rule-based detectors scored against the labels that come with the "
+               "data (precision, recall and F1).")
 
     with friendly_errors("checking for ground-truth labels", stop=True):
         with session_scope() as session:

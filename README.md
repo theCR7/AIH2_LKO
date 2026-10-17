@@ -46,7 +46,7 @@ flowchart LR
         H[Home · KPIs] --> C[Cases]
         C --> I[Investigate: graph · evidence · timeline]
         I --> SAR[SAR Draft tab]
-        I --> ASK[Ask-the-case Q&A]
+        I --> ASK["Grounded Q&A (core API, not in the UI)"]
         AU[Audit & Metrics]
     end
     subgraph core["core/ (no Streamlit)"]
@@ -78,12 +78,7 @@ and a decision log.
 
 ## How to run
 
-Phase 0 (foundation + data + detection) and Phase 1 (LLM agents + evidence-grounded
-SAR drafting) are both implemented, plus Phase 9/10 hardening: one-click **Demo mode**,
-graceful errors everywhere, cached graph building and an **Ask-the-case** grounded Q&A
-tab. Generate synthetic data → detect fraud rings → rank cases → investigate on an
-interactive graph → draft a SAR where every sentence is validated against evidence →
-ask grounded questions → review, approve and export a PDF.
+Load data (synthetic, your own CSV, or the real IBM AML benchmark) → detect fraud rings with explainable rules → rank cases → investigate on an interactive graph → draft a SAR where every sentence cites evidence and is validated against it → review, approve and export a PDF. Everything works offline with `LLM_MODE=mock`.
 
 ### 1. Set up a virtual environment and install dependencies
 ```bash
@@ -106,26 +101,26 @@ output). For **live** drafting set `LLM_MODE=live` and add `GEMINI_API_KEY` /
 ```bash
 streamlit run app/Home.py
 ```
-**Fastest path — sidebar `🎬 Demo mode`:** one click resets the data (keeping the LLM
-cache), generates the seed-42 dataset, runs detection and pre-warms the SAR drafts for
-the top 2 cases, then shows a determinism fingerprint. Run it twice — identical case and
-evidence IDs every time; in **live** mode the second run replays from cache (100% hits),
-because the prompt-hash cache survives the reset. In **mock** mode there is no cache by
-design, so the ratio shows 0%.
+The app is one page with a step bar: **Upload → Detect → Investigate → Report**, plus **Metrics**.
 
-Or, on the **Home** page click **▶ Generate demo data & run detection**. Then browse:
-- **Data** — generate (tunable size/planted counts) or upload a CSV with column mapping.
-- **Cases** — filterable, ranked case list; select a case → *Investigate →*.
-- **Investigate** — interactive pyvis graph (cached), *why flagged*, evidence & timeline,
-  the **SAR Draft** tab (Evidence → Typology → Narrative → Validator; evidence chips per
-  sentence, failed sentences highlighted by Grounding Score; edit + re-validate, audited
-  Approve / Reject, **Download SAR PDF**; the sidebar *Inject hallucination* toggle shows
-  the validator catching a false sentence), and the **Ask the case** tab — a grounded Q&A
-  that answers only from the case's EvidencePack, cites `E-ids`, and refuses out-of-scope
-  questions.
-- **Audit & Metrics** — precision / recall / F1 per pattern vs planted ground truth, and
-  the tamper-evident audit log with a verified hash-chain badge, expandable before/after
-  state per entry and CSV export.
+- **Upload** — *Use sample dataset* (seed 42: 500 accounts, ~5,000 transfers, planted laundering patterns), upload your own CSV with column mapping, or *Load IBM AML sample* (real labelled data, see below).
+- **Detect** — four headline numbers and the ranked case queue; select a row to investigate.
+- **Investigate** — interactive network graph (theme-aware, works offline), the rule-based *Why this was flagged* reason first, account risk, supporting transactions, then **Draft SAR** or **Dismiss with reason**.
+- **Report** — the drafted SAR with a citation chip on every statement, a coverage line, a completeness checklist, analyst sign-off, and PDF / text export. Unsupported statements are highlighted and block approval until acknowledged.
+- **Metrics** — detection quality against the dataset's labels and the tamper-evident audit log.
+
+Light and dark follow `.streamlit/config.toml`.
+
+### Real data: IBM AML (HI-Small) from Kaggle
+
+*Load IBM AML sample* downloads IBM's public AML benchmark (475 MB, resumable) and samples about 30,000 transactions by laundering label. Put `KAGGLE_API_TOKEN` in `.env` (or place `HI-Small_Trans.csv` in `data/`). Use it to show the pipeline on real labelled data at scale; quality is reported per transaction on Metrics and is modest by design (see `docs/TESTING.md` sections 6–7).
+
+### Before a live demo
+
+```bash
+python -c "from core.demo import run_demo; print(run_demo().fingerprint)"
+```
+Regenerates seed 42, runs detection and pre-warms the top-2 SAR drafts so they replay from cache. Groq's free tier allows about 8,000 tokens/minute on the 120b model, so two back-to-back drafts can fall back to the 20b model; see `docs/TESTING.md` section 7.
 
 ### Offline & Windows
 
@@ -156,7 +151,7 @@ ruff check .       # clean
 
 ### Project layout
 - **backend** — `core/` (config, db, models, schemas, ingest, detection, scoring, metrics,
-  `agents/` LLM pipeline incl. `qa.py` Ask-the-case, `reporting/` PDF, `demo.py` Demo mode)
+  `agents/` LLM pipeline, `reporting/` PDF, `demo.py` demo reset + pre-warm)
 - **frontend** — `app/` (Home + pages + components; imports data only via `core`)
 - **database** — `core/db.py` + `core/models.py`, SQLite file in `data/` (portable to SQL Server/Postgres via `DATABASE_URL`)
 - **rules** — all thresholds/weights live in `config/rules.yaml` (single source of truth)
